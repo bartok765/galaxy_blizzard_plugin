@@ -8,14 +8,17 @@ import requests
 import requests.cookies
 import logging as log
 import subprocess
+import time
 
-
-from version import __version__ as version
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
 from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, FriendInfo
+from galaxy.api.errors import ( AuthenticationRequired,
+    BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
+)
 
+from version import __version__ as version
 from process import ProcessProvider
 from local_client_base import ClientNotInstalledError
 from local_client import LocalClient
@@ -24,11 +27,6 @@ from definitions import Blizzard, DataclassJSONEncoder, License_Map, ClassicGame
 from consts import SYSTEM
 from consts import Platform as pf
 from http_client import AuthenticatedHttpClient
-from social import SocialFeatures
-from galaxy.api.errors import ( AuthenticationRequired,
-    BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
-)
-import time
 
 
 class BNetPlugin(Plugin):
