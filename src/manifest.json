@@ -1,0 +1,11 @@
+{
+    "name": "Galaxy Battle.net plugin",
+    "platform": "battlenet",
+    "guid": "a79f2a45-ad78-4446-9dd6-13a5bf5d8dca",
+    "version": "1.0",
+    "description": "Galaxy Battle.net plugin",
+    "author": "FriendsOfGalaxy; Bartosz T.",
+    "email": "bartok765@protonmail.com",
+    "url": "https://github.com/bartok765/galaxy_blizzard_plugin",
+    "script": "plugin.py"
+}
