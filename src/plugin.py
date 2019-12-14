@@ -35,7 +35,6 @@ class BNetPlugin(Plugin):
         self.local_client = LocalClient(self._update_statuses)
         self.authentication_client = AuthenticatedHttpClient(self)
         self.backend_client = BackendClient(self, self.authentication_client)
-        self.social_features = SocialFeatures(self.authentication_client)
 
         self.owned_games_cache = []
         self.watched_running_games = set()
@@ -266,12 +265,6 @@ class BNetPlugin(Plugin):
         self.authentication_client.set_credentials()
 
         return self.authentication_client.parse_battletag()
-
-    async def get_friends(self):
-        if not self.authentication_client.is_authenticated():
-            raise AuthenticationRequired()
-        friends_list = await self.social_features.get_friends()
-        return [FriendInfo(user_id=friend.id.low, user_name='') for friend in friends_list]
 
     async def get_owned_games(self):
         if not self.authentication_client.is_authenticated():
