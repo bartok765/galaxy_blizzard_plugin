@@ -1,7 +1,6 @@
 # Galaxy plugin for Battle.net
 
-## Client Installation
-### Instaling releases
+## Installation
 1. Download [latest](https://github.com/FriendsOfGalaxy/galaxy-integration-battlenet/releases) release of the plugin for your platform.
 2. Create plugin folder (if it does not exists yet):
 	- Windows: `%LOCALAPPDATA%\GOG.com\Galaxy\plugins\installed\battlenet`
@@ -9,7 +8,7 @@
 3. Unpack plugin to the plugin folder created in step 2.
 4. Re-connect(or re-start) your GOG Galaxy Client
 
-## Installation
+## Developement
 Install required packages for building and testing:
 ```bash
 pip install -r requirements/dev.txt
@@ -25,9 +24,15 @@ Build package
 inv build [--output=<output_folder>] [--ziparchive=<zip_package_name.zip>]
 ```
 
-Build & install in local plugins folder
+#### Shortcuts:
+Build to local plugins folder
 ```bash
 inv install
+```
+
+Build zip package with name indicating current version:
+```bash
+inv pack
 ```
 
 If you have classic blizzard games which are not properly detected as installed or don't launch when clicking 'play'

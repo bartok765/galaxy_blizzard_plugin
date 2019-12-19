@@ -8,13 +8,9 @@ from distutils.dir_util import copy_tree
 from invoke import task
 from galaxy.tools import zip_folder_to_file
 
-from src.version import __version__
-
 
 with open(os.path.join("src", "manifest.json"), "r") as f:
     MANIFEST = json.load(f)
-
-assert MANIFEST['version'] == __version__
 
 if sys.platform == 'win32':
     DIST_DIR = os.environ['localappdata'] + '\\GOG.com\\Galaxy\\plugins\\installed'
@@ -51,6 +47,7 @@ def build(c, output='build', ziparchive=None):
     copy_tree("src", output)
 
     if ziparchive is not None:
+        print('--> Compressing to {}'.format(ziparchive))
         zip_folder_to_file(output, ziparchive)
 
 
@@ -67,4 +64,6 @@ def install(c):
 
 @task
 def pack(c):
-    build(c, ziparchive='battlenet_v{}'.format(__version__))
+    output = "battlenet_" + MANIFEST['guid']
+    build(c, output=output, ziparchive='battlenet_v{}.zip'.format(MANIFEST['version']))
+    rmtree(output)
