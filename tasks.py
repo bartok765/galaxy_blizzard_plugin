@@ -11,8 +11,19 @@ from galaxy.tools import zip_folder_to_file
 from src.version import __version__
 
 
+def load_manifest():
+    with open(os.path.join("src", "manifest.json"), "r") as f:
+        return json.load(f)
+
+
+def default_dirname():
+    manifest = load_manifest()
+    return "battlenet_{}".format(manifest['guid'])
+
+
 @task
-def build(c, target="build"):
+def build(c, target=default_dirname()):
+
     if os.path.exists(target):
         print('--> Removing {} directory'.format(target))
         rmtree(target)
@@ -30,7 +41,7 @@ def build(c, target="build"):
         '--python-version', '37',
         '--platform', sys.platform,
         '--target', target,
-        '--no-compile'
+        '--no-compile',
         '--no-deps'
     ]
     c.run(" ".join(args), echo=True)
@@ -38,3 +49,15 @@ def build(c, target="build"):
 
     print('--> Copying source files')
     copy_tree("src", target)
+
+
+@task
+def zip(c, target=default_dirname()):
+    manifest = load_manifest()
+    zip_name = "battlenet_v{}".format(manifest["version"])
+    zip_folder_to_file(target, zip_name)
+
+
+@task
+def test(c):
+    c.run('pytest')
