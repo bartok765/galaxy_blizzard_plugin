@@ -15,7 +15,7 @@ with open(os.path.join("src", "manifest.json"), "r") as f:
 if sys.platform == 'win32':
     DIST_DIR = os.environ['localappdata'] + '\\GOG.com\\Galaxy\\plugins\\installed'
 elif sys.platform == 'darwin':
-    DIST_DIR = os.environ['HOME'] + r"/Library/Application\ Support/GOG.com/Galaxy/plugins/installed"
+    DIST_DIR = os.path.realpath("~/Library/Application Support/GOG.com/Galaxy/plugins/installed")
 
 
 @task
@@ -35,8 +35,7 @@ def build(c, output='build', ziparchive=None):
         'pip', 'install',
         '-r', tmp.name,
         '--python-version', '37',
-        '--platform', sys.platform,
-        '--target', output,
+        '--target "{}"'.format(output),
         '--no-compile',
         '--no-deps'
     ]
