@@ -13,7 +13,7 @@ import time
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, FriendInfo
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame
 from galaxy.api.errors import ( AuthenticationRequired,
     BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
 )
