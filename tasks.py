@@ -11,36 +11,36 @@ from galaxy.tools import zip_folder_to_file
 from src.version import __version__
 
 
-def load_manifest():
-    with open(os.path.join("src", "manifest.json"), "r") as f:
-        return json.load(f)
+with open(os.path.join("src", "manifest.json"), "r") as f:
+    MANIFEST = json.load(f)
 
+assert MANIFEST['version'] == __version__
 
-def default_dirname():
-    manifest = load_manifest()
-    return "battlenet_{}".format(manifest['guid'])
+if sys.platform == 'win32':
+    DIST_DIR = os.environ['localappdata'] + '\\GOG.com\\Galaxy\\plugins\\installed'
+elif sys.platform == 'darwin':
+    DIST_DIR = os.environ['HOME'] + r"/Library/Application\ Support/GOG.com/Galaxy/plugins/installed"
 
 
 @task
-def build(c, target=default_dirname()):
-
-    if os.path.exists(target):
-        print('--> Removing {} directory'.format(target))
-        rmtree(target)
+def build(c, output='build', ziparchive=None):
+    if os.path.exists(output):
+        print('--> Removing {} directory'.format(output))
+        rmtree(output)
 
     # Firstly dependencies needs to be "flatten" with pip-compile as pip requires --no-deps if --platform is used
     print('--> Flattening dependencies to temporary requirements file')
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmp:
         c.run(f'pip-compile requirements/app.txt --output-file=-', out_stream=tmp)
 
-    # Then install all stuff with pip to target folder
+    # Then install all stuff with pip to output folder
     print('--> Installing with pip for specific version')
     args = [
         'pip', 'install',
         '-r', tmp.name,
         '--python-version', '37',
         '--platform', sys.platform,
-        '--target', target,
+        '--target', output,
         '--no-compile',
         '--no-deps'
     ]
@@ -48,16 +48,23 @@ def build(c, target=default_dirname()):
     os.unlink(tmp.name)
 
     print('--> Copying source files')
-    copy_tree("src", target)
+    copy_tree("src", output)
 
-
-@task
-def zip(c, target=default_dirname()):
-    manifest = load_manifest()
-    zip_name = "battlenet_v{}".format(manifest["version"])
-    zip_folder_to_file(target, zip_name)
+    if ziparchive is not None:
+        zip_folder_to_file(output, ziparchive)
 
 
 @task
 def test(c):
     c.run('pytest')
+
+
+@task
+def install(c):
+    dist_path = os.path.join(DIST_DIR, "battlenet_" + MANIFEST['guid'])
+    build(c, output=dist_path)
+
+
+@task
+def pack(c):
+    build(c, ziparchive='battlenet_v{}'.format(__version__))

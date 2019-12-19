@@ -7,7 +7,7 @@
 	- Windows: `%LOCALAPPDATA%\GOG.com\Galaxy\plugins\installed\battlenet`
 	- MacOS: `${HOME}/Library/Application Support/GOG.com/Galaxy/plugins/installed/battlenet`
 3. Unpack plugin to the plugin folder created in step 2.
-4. Re-connect(or re-start) your GOG Galaxy Client 
+4. Re-connect(or re-start) your GOG Galaxy Client
 
 ## Installation
 Install required packages for building and testing:
@@ -25,7 +25,12 @@ Build package
 inv build [--output=<output_folder>] [--ziparchive=<zip_package_name.zip>]
 ```
 
-If you have classic blizzard games which are not properly detected as installed or don't launch when clicking 'play' 
+Build & install in local plugins folder
+```bash
+inv install
+```
+
+If you have classic blizzard games which are not properly detected as installed or don't launch when clicking 'play'
 please provide the name and values of the games key under
 
 ```Computer\HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\```
