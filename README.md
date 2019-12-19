@@ -8,6 +8,15 @@
 3. Unpack plugin to the plugin folder created in step 2.
 4. Re-connect(or re-start) your GOG Galaxy Client
 
+### From source (tested on windows 10 and macos 10.14 with python 3.7)
+- copy / clone this repo
+- run:
+```bash
+cd balaxy_blizard_plugin
+pip install -r requirements/dev.txt
+inv install
+```
+
 ## Developement
 Install required packages for building and testing:
 ```bash
