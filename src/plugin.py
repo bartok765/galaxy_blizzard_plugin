@@ -309,7 +309,6 @@ class BNetPlugin(Plugin):
 
             free_games_to_add = _get_not_added_free_games(owned_games)
             owned_games += free_games_to_add
-            log.info(f"Owned games {owned_games} with free games")
             self.owned_games_cache = owned_games
             return [
                 Game(
