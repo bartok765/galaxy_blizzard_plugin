@@ -155,3 +155,7 @@ class BackendClient(object):
     async def get_wow_character_achievements(self,  realm, character_name):
         url = f"{self._authentication_client.blizzard_api_url}/wow/character/{realm.lower()}/{character_name}?fields=achievements"
         return await self.do_request("GET", url)
+
+    async def get_ow_player_data(self):
+        url = 'https://playoverwatch.com/en-us/career/pc/' + self._authentication_client.user_details['battletag'].replace('#', '-')
+        return await self.do_request('GET', url, None, False)
