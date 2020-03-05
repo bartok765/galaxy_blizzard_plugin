@@ -2,6 +2,7 @@ import asyncio
 import requests
 import functools
 import logging
+import json
 
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
@@ -157,5 +158,9 @@ class BackendClient(object):
         return await self.do_request("GET", url)
 
     async def get_ow_player_data(self):
-        url = 'https://playoverwatch.com/en-us/career/pc/' + self._authentication_client.user_details['battletag'].replace('#', '-')
-        return await self.do_request('GET', url, None, False)
+        url = 'https://owapi.io/profile/pc/' + self._authentication_client.region + '/' + self._authentication_client.user_details['battletag'].replace('#', '-')
+        response = await self.do_request('GET', url, None, False)
+        payload = json.loads(response.text)
+        if 'message' in payload: # user not found... unfortunately no 404 status code is returned :/
+            return None
+        return payload
