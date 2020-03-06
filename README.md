@@ -1,5 +1,7 @@
 # Galaxy plugin for Battle.net
 
+This plugin allows you to install and launch your Blizzard games via the GOG Galaxy 2.0 launcher.
+
 ## Installation
 1. Download [latest](https://github.com/FriendsOfGalaxy/galaxy-integration-battlenet/releases) release of the plugin for your platform.
 2. Create plugin folder (if it does not exists yet):
@@ -17,7 +19,15 @@ pip install -r requirements/dev.txt
 inv install
 ```
 
-## Developement
+## Note on playtime
+
+Currently we only support displaying the total playtime of your quickplay matches in Overwatch. Playtime might take some time to update after you quit the game.
+
+**Important:** Make sure your Overwatch profile is set to public in order to show your playtime.
+To do that, start up Overwatch and navigate to the Options. From there click the "Social" tab and toggle the option "Career Profile Visibility" to "Public".
+
+
+## Development
 Install required packages for building and testing:
 ```bash
 pip install -r requirements/dev.txt
