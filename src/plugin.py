@@ -30,28 +30,6 @@ from http_client import AuthenticatedHttpClient
 
 
 class BNetPlugin(Plugin):
-    async def get_game_time(self, game_id, context):
-        gameTimeMinutes = 0
-        log.info('game_id: ' + game_id)
-        if game_id == "5272175": # Overwatch
-            log.debug("Fetching playtime for Overwatch...")
-            player_data = await self.backend_client.get_ow_player_data()
-            if player_data == None:
-                log.error('No Overwatch profile found.')
-                return GameTime(game_id, gameTimeMinutes, None)
-            if player_data['private'] == True:
-                log.info('Unable to get data as Overwatch profile is private.')
-                return GameTime(game_id, gameTimeMinutes, None)
-            qpTime = player_data['playtime']['quickplay']
-            if qpTime.count(':') == 1: # minutes and seconds
-                match = re.search('(?:(?P<m>\\d+):)(?P<s>\\d+)', qpTime)
-                gameTimeMinutes = int(qpTime.group('m'))
-            elif qpTime.count(':') == 2: # hours, minutes and seconds
-                match = re.search('(?:(?P<h>\\d+):)(?P<m>\\d+)', qpTime)
-                gameTimeMinutes = int(match.group('h')) * 60 + int(match.group('m'))
-            log.info('Overwatch quickplay playtime [minutes]: ' + str(gameTimeMinutes) + " (" + qpTime + ")")
-        return GameTime(game_id, gameTimeMinutes, None)
-
     def __init__(self, reader, writer, token):
         super().__init__(Platform.Battlenet, version, reader, writer, token)
         self.local_client = LocalClient(self._update_statuses)
@@ -377,6 +355,29 @@ class BNetPlugin(Plugin):
 
         finally:
             self.local_games_called = True
+
+
+    async def get_game_time(self, game_id, context):
+        log.info('game_id: ' + game_id)
+        if game_id == "5272175": # Overwatch
+            log.debug("Fetching playtime for Overwatch...")
+            player_data = await self.backend_client.get_ow_player_data()
+            if player_data is None:
+                log.error('No Overwatch profile found.')
+                return GameTime(game_id, None, None)
+            if player_data['private'] == True:
+                log.info('Unable to get data as Overwatch profile is private.')
+                return GameTime(game_id, None, None)
+            qp_time = player_data['playtime']['quickplay']
+            game_time_minutes = None
+            if qp_time.count(':') == 1: # minutes and seconds
+                match = re.search('(?:(?P<m>\\d+):)(?P<s>\\d+)', qp_time)
+                game_time_minutes = int(qp_time.group('m'))
+            elif qp_time.count(':') == 2: # hours, minutes and seconds
+                match = re.search('(?:(?P<h>\\d+):)(?P<m>\\d+)', qp_time)
+                game_time_minutes = int(match.group('h')) * 60 + int(match.group('m'))
+            log.info('Overwatch quickplay playtime [minutes]: ' + str(game_time_minutes) + " (" + qp_time + ")")
+        return GameTime(game_id, game_time_minutes, None)
 
     async def _get_wow_achievements(self):
         achievements = []
