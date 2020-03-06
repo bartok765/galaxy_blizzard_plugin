@@ -3,10 +3,10 @@
 This plugin allows you to install and launch your Blizzard games via the GOG Galaxy 2.0 launcher.
 
 ## Installation
-1. Download [latest](https://github.com/FriendsOfGalaxy/galaxy-integration-battlenet/releases) release of the plugin for your platform.
+1. Download [latest](https://github.com/FriendsOfGalaxy/galaxy-integration-blizzard/releases) release of the plugin for your platform.
 2. Create plugin folder (if it does not exists yet):
 	- Windows: `%LOCALAPPDATA%\GOG.com\Galaxy\plugins\installed\battlenet`
-	- MacOS: `${HOME}/Library/Application Support/GOG.com/Galaxy/plugins/installed/battlenet`
+	- MacOS: `${HOME}/Library/Application Support/GOG.com/Galaxy/plugins/installed/blizzard`
 3. Unpack plugin to the plugin folder created in step 2.
 4. Re-connect(or re-start) your GOG Galaxy Client
 
@@ -14,7 +14,7 @@ This plugin allows you to install and launch your Blizzard games via the GOG Gal
 - copy / clone this repo
 - run:
 ```bash
-cd galaxy_blizard_plugin
+cd galaxy_blizzard_plugin
 pip install -r requirements/dev.txt
 inv install
 ```
