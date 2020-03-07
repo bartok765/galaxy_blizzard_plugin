@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*-coding:utf-8-*-
+
 import asyncio
 import requests
 import functools
@@ -86,57 +89,111 @@ class BackendClient(object):
             raise e
 
     async def refresh_cookies(self):
-        headers = {
-            'User-Agent': FIREFOX_AGENT
-        }
-        r = await self.do_request('GET', f"https://{self._authentication_client.region}.account.blizzard.com/games", json=False, headers=headers,
-                                   ignore_failure=True)
+        if self._authentication_client.region == 'cn':
+            headers = {
+                'User-Agent': FIREFOX_AGENT
+            }
+            r = await self.do_request('GET', f"https://account.blizzardgames.cn/games", json=False, headers=headers,
+                                       ignore_failure=True)
 
-        # verbose log responses in this function due to large probability of failure
+            # verbose log responses in this function due to large probability of failure
 
-        headers = {
-            'User-Agent': FIREFOX_AGENT,
-            "Referer": "https://account.blizzard.com/games",
-        }
-        r = await self.do_request("GET", f"https://{self._authentication_client.region}.account.blizzard.com/api/games-and-subs", json=False,
-                                   headers=headers, ignore_failure=True)
+            headers = {
+                'User-Agent': FIREFOX_AGENT,
+                "Referer": "https://account.blizzardgames.cn/games",
+            }
+            r = await self.do_request("GET",
+                                      f"https://account.blizzardgames.cn/api/games-and-subs",
+                                      json=False,
+                                      headers=headers, ignore_failure=True)
 
-        if r.status_code != 401:
+            if r.status_code != 401:
+                return
+
+            headers = {
+                'User-Agent': FIREFOX_AGENT,
+                "Referer": f"https://account.blizzardgames.cn/api/"
+            }
+            r = await self.do_request("GET",
+                                      f"https://account.blizzardgames.cn:443/oauth2/"
+                                      f"authorization/account-settings",
+                                      json=False, headers=headers)
+
+            headers = {
+                'User-Agent': FIREFOX_AGENT
+            }
+            r = await self.do_request("GET",
+                                      f"https://account.blizzardgames.cn/api/games-and-subs",
+                                      json=False,
+                                      headers=headers)
+            return
+        else:
+            headers = {
+                'User-Agent': FIREFOX_AGENT
+            }
+            r = await self.do_request('GET', f"https://{self._authentication_client.region}.account.blizzard.com/games", json=False, headers=headers,
+                                      ignore_failure=True)
+
+            # verbose log responses in this function due to large probability of failure
+
+            headers = {
+                'User-Agent': FIREFOX_AGENT,
+                "Referer": "https://account.blizzard.com/games",
+            }
+            r = await self.do_request("GET", f"https://{self._authentication_client.region}.account.blizzard.com/api/games-and-subs", json=False,
+                                      headers=headers, ignore_failure=True)
+
+            if r.status_code != 401:
+                return
+
+            headers = {
+                'User-Agent': FIREFOX_AGENT,
+                "Referer": f"https://{self._authentication_client.region}.account.blizzard.com/api/"
+            }
+            r = await self.do_request("GET", f"https://{self._authentication_client.region}.account.blizzard.com:443/oauth2/authorization/account-settings",
+                                      json=False, headers=headers)
+
+            headers = {
+                'User-Agent': FIREFOX_AGENT
+            }
+            r = await self.do_request("GET", f"https://{self._authentication_client.region}.account.blizzard.com/api/games-and-subs", json=False,
+                                      headers=headers)
             return
 
-        headers = {
-            'User-Agent': FIREFOX_AGENT,
-            "Referer": f"https://{self._authentication_client.region}.account.blizzard.com/api/"
-        }
-        r = await self.do_request("GET", f"https://{self._authentication_client.region}.account.blizzard.com:443/oauth2/authorization/account-settings",
-                                   json=False, headers=headers)
-
-        headers = {
-            'User-Agent': FIREFOX_AGENT
-        }
-        r = await self.do_request("GET", f"https://{self._authentication_client.region}.account.blizzard.com/api/games-and-subs", json=False,
-                                   headers=headers)
-        return
-
     async def get_user_info(self):
-        url = f"https://{self._authentication_client.region}.battle.net/oauth/userinfo"
+        if self._authentication_client.region == 'cn':
+            url = f"https://www.battlenet.com.cn/oauth/userinfo"
+        else:
+            url = f"https://{self._authentication_client.region}.battle.net/oauth/userinfo"
         return await self._authenticated_request("GET", url)
 
     async def get_account_details(self):
-        details_url = f"https://{self._authentication_client.region}.account.blizzard.com/api/details"
+        if self._authentication_client.region == 'cn':
+            details_url = f"https://account.blizzardgames.cn/api/details"
+        else:
+            details_url = f"https://{self._authentication_client.region}.account.blizzard.com/api/details"
         return await self.do_request("GET", details_url)
 
     async def get_owned_games(self):
-        games_url = f"https://{self._authentication_client.region}.account.blizzard.com/api/games-and-subs"
+        if self._authentication_client.region == 'cn':
+            games_url = f"https://account.blizzardgames.cn/api/games-and-subs"
+        else:
+            games_url = f"https://{self._authentication_client.region}.account.blizzard.com/api/games-and-subs"
         return await self._authenticated_request("GET", games_url)
 
     async def get_owned_classic_games(self):
-        games_url = f"https://{self._authentication_client.region}.account.blizzard.com/api/classic-games"
+        if self._authentication_client.region == 'cn':
+            games_url = f"https://account.blizzardgames.cn/api/classic-games"
+        else:
+            games_url = f"https://{self._authentication_client.region}.account.blizzard.com/api/classic-games"
         return await self._authenticated_request("GET", games_url)
 
     async def validate_access_token(self, access_token):
         # this is inconsistent with the documentation https://develop.battle.net/documentation/api-reference/oauth-api
-        token_url = f"https://{self._authentication_client.region}.battle.net/oauth/check_token"
+        if self._authentication_client.region == 'cn':
+            token_url = f"https://www.battlenet.com.cn/oauth/check_token"
+        else:
+            token_url = f"https://{self._authentication_client.region}.battle.net/oauth/check_token"
         # return await self.do_request()("POST", token_url, data={"token": access_token})
         return await self.do_request("POST", token_url, data={"token": access_token},  ignore_failure=True)
 
@@ -149,9 +206,15 @@ class BackendClient(object):
         return await self._authenticated_request("GET", url)
 
     async def get_wow_character_data(self):
-        url = f"https://{self._authentication_client.region}.api.blizzard.com/wow/user/characters"
+        if self._authentication_client.region == 'cn':
+            url = f"https://gateway.battlenet.com.cn/wow/user/characters"
+        else:
+            url = f"https://{self._authentication_client.region}.api.blizzard.com/wow/user/characters"
         return await self._authenticated_request("GET", url)
 
     async def get_wow_character_achievements(self,  realm, character_name):
-        url = f"https://{self._authentication_client.region}.api.blizzard.com/wow/character/{realm.lower()}/{character_name}?fields=achievements"
+        if self._authentication_client.region == 'cn':
+            url = f"https://gateway.battlenet.com.cn/wow/character/{realm.lower()}/{character_name}?fields=achievements"
+        else:
+            url = f"https://{self._authentication_client.region}.api.blizzard.com/wow/character/{realm.lower()}/{character_name}?fields=achievements"
         return await self.do_request("GET", url)

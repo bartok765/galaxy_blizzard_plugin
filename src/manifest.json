@@ -1,8 +1,8 @@
 {
     "name": "Galaxy Battle.net plugin",
     "platform": "battlenet",
-    "guid": "ba170431-0649-482f-863b-d248592f1842",
-    "version": "1.0.2",
+    "guid": "bc6c6d04-f281-4226-820b-d23f6cc79e44",
+    "version": "1.1.0",
     "description": "Galaxy Battle.net plugin",
     "author": "FriendsOfGalaxy; Bartosz T.",
     "email": "bartok765@protonmail.com",

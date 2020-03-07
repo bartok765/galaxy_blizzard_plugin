@@ -6,8 +6,8 @@ from product_db_pb2 import ProductDb
 
 class ConfigParser(object):
     def __init__(self, config_data):
-        self._blizz_code_lang = 'enUS'
-        self._region = 'US'
+        self._blizz_code_lang = ''
+        self._region = ''
         self.games = []
 
         if config_data is None:
@@ -30,7 +30,8 @@ class ConfigParser(object):
         for key in content.keys():
             if 'Client' in content[key]:
                 self._blizz_code_lang = content[key]['Client']['Language']
-            elif 'Services' in content[key]:
+
+            if 'Services' in content[key]:
                 self._region = content[key]['Services']['LastLoginRegion']
         if 'Games' in content:
             return content['Games']
@@ -54,7 +55,13 @@ class DatabaseParser(object):
     def __init__(self, data):
         self.data = data
         self.products = {}
+        self._region = ''
+
         self.parse()
+
+    @property
+    def region(self):
+        return self._region
 
     @property
     def battlenet_present(self):
@@ -72,6 +79,11 @@ class DatabaseParser(object):
         database.ParseFromString(self.data)
 
         for product_install in database.product_installs:
+            # process region
+            if product_install.product_code in ['agent',
+                                                'bna'] and not self.region:
+                self._region = product_install.settings.play_region
+
             ngdp_code = product_install.product_code
             uninstall_tag = product_install.uid
             install_path = product_install.settings.install_path

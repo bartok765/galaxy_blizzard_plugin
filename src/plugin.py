@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*-coding:utf-8-*-
+
 import asyncio
 import json
 import os
@@ -13,10 +16,12 @@ import time
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame
-from galaxy.api.errors import ( AuthenticationRequired,
-    BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
-)
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime
+from galaxy.api.errors import (AuthenticationRequired,
+                               BackendTimeout, BackendNotAvailable,
+                               BackendError, NetworkError, UnknownError,
+                               InvalidCredentials
+                               )
 
 from version import __version__ as version
 from process import ProcessProvider
@@ -100,7 +105,10 @@ class BNetPlugin(Plugin):
         self.owned_games_cache = []
 
     async def open_battlenet_browser(self):
-        url = f"https://www.blizzard.com/apps/battle.net/desktop"
+        if self.authentication_client.region == 'cn':
+            url = f"https://cn.blizzard.com/zh-cn/apps/battle.net/desktop"
+        else:
+            url = f"https://www.blizzard.com/apps/battle.net/desktop"
         log.info(f'Opening battle.net website: {url}')
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda x: webbrowser.open(x, autoraise=True), url)
@@ -335,10 +343,10 @@ class BNetPlugin(Plugin):
                     break
 
             running_games = self.local_client.get_running_games()
-            instaled_games = self.local_client.get_installed_games()
-            log.info(f"Installed games {instaled_games.items()}")
+            installed_games = self.local_client.get_installed_games()
+            log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
-            for id_, game in instaled_games.items():
+            for id_, game in installed_games.items():
                 if game.playable:
                     state = LocalGameState.Installed
                     if id_ in running_games:
@@ -346,7 +354,7 @@ class BNetPlugin(Plugin):
                 else:
                     state = LocalGameState.None_
                 translated_installed_games.append(LocalGame(id_, state))
-            self.local_client.installed_games_cache = instaled_games
+            self.local_client.installed_games_cache = installed_games
             return translated_installed_games
 
         except Exception as e:
@@ -452,6 +460,18 @@ class BNetPlugin(Plugin):
         log.info("Plugin shutdown.")
         await self.authentication_client.shutdown()
 
+    async def get_game_time(self, game_id, context):
+        if not self.local_games_called:
+            await self.get_local_games()
+
+        for game_uid, installed_game in self.local_client.installed_games_cache.items():
+            if game_uid == game_id:
+                last_played = int(installed_game.last_played)
+                log.debug(
+                    f'get_game_time return {game_id} {last_played}')
+                return GameTime(game_id, None, last_played_time=last_played)
+
+        log.debug(f'warning get_game_time failed for {game_id}')
 
 def main():
     multiprocessing.freeze_support()

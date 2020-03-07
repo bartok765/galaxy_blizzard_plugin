@@ -12,7 +12,7 @@
 - copy / clone this repo
 - run:
 ```bash
-cd balaxy_blizard_plugin
+cd galaxy_blizard_plugin
 pip install -r requirements/dev.txt
 inv install
 ```
