@@ -375,7 +375,7 @@ class BNetPlugin(Plugin):
             elif qp_time.count(':') == 2: # hours, minutes and seconds
                 match = re.search('(?:(?P<h>\\d+):)(?P<m>\\d+)', qp_time)
                 game_time_minutes = int(match.group('h')) * 60 + int(match.group('m'))
-            log.info('Overwatch quickplay playtime [minutes]: ' + str(game_time_minutes) + " (" + qp_time + ")")
+            log.info(f"Overwatch quickplay playtime [minutes]: {str(game_time_minutes)} ({qp_time})")
         return GameTime(game_id, game_time_minutes, None)
 
     async def _get_wow_achievements(self):
