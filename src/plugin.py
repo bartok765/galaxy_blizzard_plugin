@@ -358,11 +358,10 @@ class BNetPlugin(Plugin):
 
 
     async def get_game_time(self, game_id, context):
-        log.info('game_id: ' + game_id)
         if game_id == "5272175": # Overwatch
             log.debug("Fetching playtime for Overwatch...")
             player_data = await self.backend_client.get_ow_player_data()
-            if player_data is None:
+            if 'message' in player_data: # user not found... unfortunately no 404 status code is returned :/
                 log.error('No Overwatch profile found.')
                 return GameTime(game_id, None, None)
             if player_data['private'] == True:

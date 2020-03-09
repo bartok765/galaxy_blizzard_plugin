@@ -157,9 +157,6 @@ class BackendClient(object):
         return await self.do_request("GET", url)
 
     async def get_ow_player_data(self):
-        player_name = self._authentication_client.user_details['battletag'].replace('#', '-')
-        url = f"https://owapi.io/profile/pc/{self._authentication_client.region}/{player_name}"
-        payload = await self.do_request('GET', url)
-        if 'message' in payload: # user not found... unfortunately no 404 status code is returned :/
-            return None
-        return payload
+        player_name = self._authentication_client.user_details['battletag']
+        url = f"https://owapi.io/profile/pc/{self._authentication_client.region}/{player_name.replace('#', '-')}"
+        return await self.do_request('GET', url)
