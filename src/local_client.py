@@ -11,11 +11,10 @@ from definitions import ClassicGame
 from consts import Platform, SYSTEM, AGENT_PATH
 
 if SYSTEM == Platform.WINDOWS:
-    import winreg_helper
+    import winreg
     import ctypes
 elif SYSTEM == Platform.MACOS:
-    from Quartz import CGWindowListCopyWindowInfo, kCGNullWindowID, \
-        kCGWindowListExcludeDesktopElements
+    from Quartz import CGWindowListCopyWindowInfo, kCGNullWindowID, kCGWindowListExcludeDesktopElements
     from AppKit import NSWorkspace
 
 from local_client_base import BaseLocalClient
@@ -42,6 +41,7 @@ class WinUninstaller(object):
 
 class WinLocalClient(BaseLocalClient):
     def __init__(self, update_statuses):
+        self._WIN_REG_SHELL = (winreg.HKEY_CLASSES_ROOT, r"battlenet\shell\open\command")
         super().__init__(update_statuses)
         self.uninstaller = self.set_uninstaller()
         self._exe = self._find_exe()
@@ -55,7 +55,7 @@ class WinLocalClient(BaseLocalClient):
             log.warning('uninstaller not found' + str(e))
 
     def _find_exe(self):
-        shell_reg_value = self.__search_registry_for_run_cmd(winreg_helper.HKEY_CLASSES_ROOT, r"battlenet\shell\open\command")
+        shell_reg_value = self.__search_registry_for_run_cmd(*self._WIN_REG_SHELL)
         if shell_reg_value is None:
             return None
         reg = re.compile("\"(.*?)\"")  # any chars in double quotes
@@ -118,19 +118,20 @@ class WinLocalClient(BaseLocalClient):
         except Exception as e:
             log.error(f'Error while waiting for process to be spawn: {repr(e)}')
 
-    def __search_registry_for_run_cmd(self, root, path):
+    def __search_registry_for_run_cmd(self, *args):
         """
         :param args - arguments as for winreg.OpenKey()
         :returns value of the first string-type key or False if given registry does not exists
         """
         try:
-            key = winreg_helper.Key(root, path)
-            try:
-                exe_cmd = key.get_data('')
-                if exe_cmd:
-                    return exe_cmd
-            except OSError:  # no more data
-                return None
+            key = winreg.OpenKey(*args)
+            for i in range(1024):
+                try:
+                    _, exe_cmd, _type = winreg.EnumValue(key, i)
+                    if exe_cmd and _type == winreg.REG_SZ:  # null-terminated string
+                        return exe_cmd
+                except OSError:  # no more data
+                    break
         except FileNotFoundError:
             return None
 

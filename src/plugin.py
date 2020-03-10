@@ -105,10 +105,7 @@ class BNetPlugin(Plugin):
         self.owned_games_cache = []
 
     async def open_battlenet_browser(self):
-        if self.authentication_client.region == 'cn':
-            url = f"https://cn.blizzard.com/zh-cn/apps/battle.net/desktop"
-        else:
-            url = f"https://www.blizzard.com/apps/battle.net/desktop"
+        url = self.authentication_client.blizzard_battlenet_download_url
         log.info(f'Opening battle.net website: {url}')
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda x: webbrowser.open(x, autoraise=True), url)
@@ -460,18 +457,6 @@ class BNetPlugin(Plugin):
         log.info("Plugin shutdown.")
         await self.authentication_client.shutdown()
 
-    async def get_game_time(self, game_id, context):
-        if not self.local_games_called:
-            await self.get_local_games()
-
-        for game_uid, installed_game in self.local_client.installed_games_cache.items():
-            if game_uid == game_id:
-                last_played = int(installed_game.last_played)
-                log.debug(
-                    f'get_game_time return {game_id} {last_played}')
-                return GameTime(game_id, None, last_played_time=last_played)
-
-        log.debug(f'warning get_game_time failed for {game_id}')
 
 def main():
     multiprocessing.freeze_support()

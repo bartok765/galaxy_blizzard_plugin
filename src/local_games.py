@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*-coding:utf-8-*-
-
 from threading import Thread, Lock
 
 import logging as log
@@ -16,7 +13,7 @@ from pathfinder import PathFinder
 import time
 
 if SYSTEM == Platform.WINDOWS:
-    import winreg_helper
+    import winreg
 
 pathfinder = PathFinder(SYSTEM)
 
@@ -80,30 +77,22 @@ class LocalGames():
     def _add_classic_game(self, game, key):
         if game.registry_path:
             try:
-                game_key = winreg_helper.Key(key,
-                                             game.registry_path,
-                                             create=False)
-
-                log.debug(
-                    f"Found classic game registry entry! {game.registry_path}")
-
-                install_path = game_key.get_data(game.registry_installation_key)
-
-                if install_path.endswith('.exe'):
-                    install_path = Path(install_path).parent
-                uninstall_path = game_key.get_data('UninstallString')
-
-                if os.path.exists(install_path):
-                    log.debug(
-                        f"Found classic game is installed! {game.registry_path}")
-                    return InstalledGame(
-                        game,
-                        uninstall_path,
-                        '1.0',
-                        '',
-                        install_path,
-                        True
-                    )
+                with winreg.OpenKey(key, game.registry_path) as game_key:
+                    log.debug(f"Found classic game registry entry! {game.registry_path}")
+                    install_path = winreg.QueryValueEx(game_key, game.registry_installation_key)[0]
+                    if install_path.endswith('.exe'):
+                        install_path = Path(install_path).parent
+                    uninstall_path = winreg.QueryValueEx(game_key, "UninstallString")[0]
+                    if os.path.exists(install_path):
+                        log.debug(f"Found classic game is installed! {game.registry_path}")
+                        return InstalledGame(
+                            game,
+                            uninstall_path,
+                            '1.0',
+                            '',
+                            install_path,
+                            True
+                        )
             except OSError:
                 return None
         return None
@@ -113,14 +102,13 @@ class LocalGames():
         log.debug("Looking for classic games")
         if SYSTEM == Platform.WINDOWS:
             try:
-                key = winreg_helper.Key(winreg_helper.HKLM,
-                                        WINDOWS_UNINSTALL_LOCATION)
-
-                for game in Blizzard.legacy_games:
-                    log.debug(f"Checking if {game} is in registry ")
-                    installed_game = self._add_classic_game(game, key)
-                    if installed_game:
-                        classic_games[game.id] = installed_game
+                reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+                with winreg.OpenKey(reg, WINDOWS_UNINSTALL_LOCATION) as key:
+                    for game in Blizzard.legacy_games:
+                        log.debug(f"Checking if {game} is in registry ")
+                        installed_game = self._add_classic_game(game, key)
+                        if installed_game:
+                            classic_games[game.id] = installed_game
             except OSError as e:
                 log.exception(f"Exception while looking for installed classic games {e}")
         else:

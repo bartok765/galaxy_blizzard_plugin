@@ -2,7 +2,7 @@
 # -*-coding:utf-8-*-
 
 import logging
-
+import requests
 
 def _found_region(cookies):
     try:
@@ -24,7 +24,8 @@ def guess_region(local_client):
     """
     1. read the consts.py
     2. try read the battlenet db OR config get the region info.
-    3. failed return ""
+    3. try query https://www.blizzard.com/en-us/user
+    4. failed return ""
     """
     from consts import REGION
     if REGION:
@@ -38,6 +39,9 @@ def guess_region(local_client):
             if local_client.database_parser.region:
                 return local_client.database_parser.region.lower()
 
+        response = requests.get('https://www.blizzard.com/en-us/user', timeout=10)
+        assert response.status_code == 200
+        return response.json()['region'].lower()
     except Exception as e:
         logging.error(f'{e}')
         return ""

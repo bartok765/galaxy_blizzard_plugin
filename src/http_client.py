@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*-coding:utf-8-*-
-
 from definitions import WebsiteAuthData
 import pickle
 import asyncio
@@ -26,17 +23,6 @@ class AuthenticatedHttpClient(object):
         self.timeout = 10.0
         self.attempted_to_set_battle_tag = None
         self.auth_data = None
-
-
-    @property
-    def region(self):
-        if self._region is None:
-            self._region = guess_region(self._plugin.local_client)
-        return self._region
-
-    @region.setter
-    def region(self, value):
-        self._region = value
 
     def is_authenticated(self):
         return self.session is not None
@@ -64,10 +50,7 @@ class AuthenticatedHttpClient(object):
         loop = asyncio.get_running_loop()
 
         s = requests.Session()
-        if self.region == 'cn':
-            url = "https://www.battlenet.com.cn/oauth/token"
-        else:
-            url = f"https://{self.region}.battle.net/oauth/token"
+        url = f"https://{self.blizzard_oauth_url}/token"
         data = {
             "grant_type": "authorization_code",
             "redirect_uri": REDIRECT_URI,
@@ -105,10 +88,7 @@ class AuthenticatedHttpClient(object):
             raise InvalidCredentials()
 
     def authenticate_using_login(self):
-        if self.region == 'cn':
-            _URI = f'https://www.battlenet.com.cn/oauth/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=wow.profile'
-        else:
-            _URI = f'https://battle.net/oauth/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=wow.profile+sc2.profile'
+        _URI = f'{self.blizzard_oauth_url}/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=wow.profile+sc2.profile'
         auth_params = {
             "window_title": "Login to Battle.net",
             "window_width": 540,
@@ -143,14 +123,8 @@ class AuthenticatedHttpClient(object):
         except KeyError:
             st_parameter = requests.utils.dict_from_cookiejar(
                 self.auth_data.cookie_jar)["BA-tassadar"]
-
-            if self.region == 'cn':
-                start_uri = f'https://www.battlenet.com.cn/login/zh/flow/' \
+            start_uri = f'https://{self.region}.battle.net/login/en/flow/' \
                             f'app.app?step=login&ST={st_parameter}&app=app&cr=true'
-            else:
-                start_uri = f'https://{self.region}.battle.net/login/en/flow/' \
-                            f'app.app?step=login&ST={st_parameter}&app=app&cr=true'
-
             auth_params = {
                 "window_title": "Login to Battle.net",
                 "window_width": 540,
@@ -182,3 +156,40 @@ class AuthenticatedHttpClient(object):
             "user_details_cache": self.user_details
         }
         self._plugin.store_credentials(creds)
+
+    @property
+    def region(self):
+        if self._region is None:
+            self._region = guess_region(self._plugin.local_client)
+        return self._region
+
+    @region.setter
+    def region(self, value):
+        self._region = value
+
+    @property
+    def blizzard_accounts_url(self):
+        if self.region == 'cn':
+            return "https://account.blizzardgames.cn"
+        else:
+            return f"https://{self.region}.account.blizzard.com"
+
+    @property
+    def blizzard_oauth_url(self):
+        if self.region == 'cn':
+            return "https://www.battlenet.com.cn/oauth"
+        else:
+            return f"https://{self.region}.battle.net/oauth"
+    @property
+    def blizzard_api_url(self):
+        if self.region == 'cn':
+            return "https://gateway.battlenet.com.cn"
+        else:
+            return f"https://{self.region}.api.blizzard.com"
+
+    @property
+    def blizzard_battlenet_download_url(self):
+        if self.region == 'cn':
+            return "https://cn.blizzard.com/zh-cn/apps/battle.net/desktop"
+        else:
+            return "https://www.blizzard.com/apps/battle.net/desktop"

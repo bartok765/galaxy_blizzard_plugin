@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*-coding:utf-8-*-
-
 import os
 import asyncio
 import logging as log
@@ -8,8 +5,7 @@ import subprocess
 import abc
 from time import time
 from pathlib import Path
-import json
-import errno
+
 
 from definitions import Blizzard
 from process import ProcessProvider
@@ -18,6 +14,8 @@ from watcher import FileWatcher
 from parsers import ConfigParser, DatabaseParser
 
 from local_games import LocalGames, InstalledGame
+import json
+import errno
 
 
 class ClientNotInstalledError(Exception):
@@ -243,7 +241,7 @@ class BaseLocalClient(abc.ABC):
                     refreshed_games = self.get_installed_games()
                     self._update_statuses(refreshed_games, self.installed_games_cache)
                     self.installed_games_cache = refreshed_games
-            await asyncio.sleep(10)
+            await asyncio.sleep(1)
 
     def games_finished_parsing(self):
         return self._games_provider.parsed_classics and self._games_provider.parsed_battlenet
