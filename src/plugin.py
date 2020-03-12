@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*-coding:utf-8-*-
-
 import asyncio
 import json
 import os
@@ -16,12 +13,10 @@ import time
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime
-from galaxy.api.errors import (AuthenticationRequired,
-                               BackendTimeout, BackendNotAvailable,
-                               BackendError, NetworkError, UnknownError,
-                               InvalidCredentials
-                               )
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame
+from galaxy.api.errors import ( AuthenticationRequired,
+    BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
+)
 
 from version import __version__ as version
 from process import ProcessProvider

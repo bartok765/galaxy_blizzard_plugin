@@ -50,7 +50,7 @@ class AuthenticatedHttpClient(object):
         loop = asyncio.get_running_loop()
 
         s = requests.Session()
-        url = f"https://{self.blizzard_oauth_url}/token"
+        url = f"{self.blizzard_oauth_url}/token"
         data = {
             "grant_type": "authorization_code",
             "redirect_uri": REDIRECT_URI,
@@ -123,7 +123,7 @@ class AuthenticatedHttpClient(object):
         except KeyError:
             st_parameter = requests.utils.dict_from_cookiejar(
                 self.auth_data.cookie_jar)["BA-tassadar"]
-            start_uri = f'https://{self.region}.battle.net/login/en/flow/' \
+            start_uri = f'{self.blizzard_battlenet_login_url}/flow/' \
                             f'app.app?step=login&ST={st_parameter}&app=app&cr=true'
             auth_params = {
                 "window_title": "Login to Battle.net",
@@ -193,3 +193,10 @@ class AuthenticatedHttpClient(object):
             return "https://cn.blizzard.com/zh-cn/apps/battle.net/desktop"
         else:
             return "https://www.blizzard.com/apps/battle.net/desktop"
+
+    @property
+    def blizzard_battlenet_login_url(self):
+        if self.region == 'cn':
+            return 'https://www.battlenet.com.cn/login/zh'
+        else:
+            return f'https://{self.region}.battle.net/login/en'

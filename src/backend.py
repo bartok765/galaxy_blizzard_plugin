@@ -141,11 +141,11 @@ class BackendClient(object):
         return await self.do_request("POST", token_url, data={"token": access_token},  ignore_failure=True)
 
     async def get_sc2_player_data(self, account_id):
-        url = f"https://{self._authentication_client.region}.api.blizzard.com/sc2/player/{account_id}"
+        url = f"{self._authentication_client.blizzard_api_url}/sc2/player/{account_id}"
         return await self._authenticated_request("GET", url)
 
     async def get_sc2_profile_data(self, region_id, realm_id, player_id):
-        url = f"https://{self._authentication_client.region}.api.blizzard.com/sc2/profile/{region_id}/{realm_id}/{player_id}"
+        url = f"{self._authentication_client.blizzard_api_url}/sc2/profile/{region_id}/{realm_id}/{player_id}"
         return await self._authenticated_request("GET", url)
 
     async def get_wow_character_data(self):
