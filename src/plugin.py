@@ -226,8 +226,7 @@ class BNetPlugin(Plugin):
                     auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
                 except (BackendNotAvailable, BackendError, NetworkError, UnknownError, BackendTimeout) as e:
                     raise e
-                except Exception as e:
-                    print(e)
+                except Exception:
                     raise InvalidCredentials()
                 if self.authentication_client.validate_auth_status(auth_status):
                     self.authentication_client.user_details = await self.backend_client.get_user_info()
