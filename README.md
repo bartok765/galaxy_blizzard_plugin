@@ -6,7 +6,7 @@ This plugin allows you to install and launch your Blizzard games via the GOG Gal
 1. Download [latest](https://github.com/FriendsOfGalaxy/galaxy-integration-blizzard/releases) release of the plugin for your platform.
 2. Create plugin folder (if it does not exists yet):
 	- Windows: `%LOCALAPPDATA%\GOG.com\Galaxy\plugins\installed\battlenet`
-	- MacOS: `${HOME}/Library/Application Support/GOG.com/Galaxy/plugins/installed/blizzard`
+	- MacOS: `${HOME}/Library/Application Support/GOG.com/Galaxy/plugins/installed/battlenet`
 3. Unpack plugin to the plugin folder created in step 2.
 4. Re-connect(or re-start) your GOG Galaxy Client
 
@@ -28,8 +28,20 @@ To do that, start up Overwatch and navigate to the Options. From there click the
 
 
 ## Development
+
 Install required packages for building and testing:
+
 ```bash
+pip install -r requirements/dev.txt
+```
+
+You may want to install the pacakges in a virtual environment:
+
+```bash
+pip install virtualenv
+cd galaxy_blizzard_plugin
+virtualenv .venv
+.venv\Scripts\activate.bat
 pip install -r requirements/dev.txt
 ```
 
@@ -44,6 +56,7 @@ inv build [--output=<output_folder>] [--ziparchive=<zip_package_name.zip>]
 ```
 
 #### Shortcuts:
+
 Build to local plugins folder
 ```bash
 inv install
