@@ -1,9 +1,11 @@
 import asyncio
 import pytest
+import json
+
 from galaxy.api.types import Game, LicenseInfo
 from galaxy.api.consts import LicenseType
 
-from tests.website_mock import WebsiteClientMock
+from tests.website_mocks import owned_games_backend
 
 
 @pytest.fixture
@@ -77,10 +79,15 @@ def result_owned_games():
     ]
 
 
-@pytest.mark.asyncio
-async def test_all_games(authenticated_plugin, result_owned_games, backend_mock):
-    backend_mock.get_owned_games.return_value = await WebsiteClientMock().get_owned_games()
-    backend_mock.get_owned_classic_games.return_value = await WebsiteClientMock().get_owned_classic_games()
+@pytest.fixture
+def backend_no_classics():
+    return json.loads("""{ "classicGames": [] } """)
 
-    result = await authenticated_plugin.get_owned_games()
+
+@pytest.mark.asyncio
+async def test_all_games(pg, backend_mock, backend_owned_games, backend_no_classics, result_owned_games):
+    backend_mock.get_owned_games.return_value = backend_owned_games
+    backend_mock.get_owned_classic_games.return_value = backend_no_classics
+
+    result = await pg.get_owned_games()
     assert result == result_owned_games
