@@ -11,29 +11,13 @@ from galaxy.api.errors import InvalidCredentials
 from galaxy.api.types import Authentication, NextStep
 
 from consts import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, FIREFOX_AGENT
-
-
-def _found_region(cookies):
-    try:
-        for cookie in cookies:
-            if cookie['name'] == 'JSESSIONID':
-                _region = cookie['domain'].split('.')[0]
-                # 4th region - chinese uses different endpoints, not covered by current plugin
-                if _region.lower() in ['eu', 'us', 'kr']:
-                    return _region
-                else:
-                    raise ValueError(f'Unknown region {_region}')
-        else:  # for
-            raise ValueError(f'JSESSIONID cookie not found')
-    except Exception:
-        return 'eu'
-
+from region_helper import _found_region, guess_region
 
 class AuthenticatedHttpClient(object):
     def __init__(self, plugin):
         self._plugin = plugin
         self.user_details = None
-        self.region = None
+        self._region = None
         self.session = None
         self.creds = None
         self.timeout = 10.0
@@ -66,7 +50,7 @@ class AuthenticatedHttpClient(object):
         loop = asyncio.get_running_loop()
 
         s = requests.Session()
-        url = f"https://{self.region}.battle.net/oauth/token"
+        url = f"{self.blizzard_oauth_url}/token"
         data = {
             "grant_type": "authorization_code",
             "redirect_uri": REDIRECT_URI,
@@ -104,7 +88,7 @@ class AuthenticatedHttpClient(object):
             raise InvalidCredentials()
 
     def authenticate_using_login(self):
-        _URI = f'https://battle.net/oauth/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=wow.profile+sc2.profile'
+        _URI = f'{self.blizzard_oauth_url}/authorize?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=wow.profile+sc2.profile'
         auth_params = {
             "window_title": "Login to Battle.net",
             "window_width": 540,
@@ -124,7 +108,8 @@ class AuthenticatedHttpClient(object):
         return Authentication(self.user_details["id"], battletag)
 
     def parse_cookies(self, cookies):
-        self.region = _found_region(cookies)
+        if not self.region:
+            self.region = _found_region(cookies)
         new_cookies = {cookie["name"]: cookie["value"] for cookie in cookies}
         return requests.cookies.cookiejar_from_dict(new_cookies)
 
@@ -136,12 +121,15 @@ class AuthenticatedHttpClient(object):
         try:
             battletag = self.user_details["battletag"]
         except KeyError:
-            _URI = f'https://{self.region}.battle.net/login/en/flow/app.app?step=login&ST={requests.utils.dict_from_cookiejar(self.auth_data.cookie_jar)["BA-tassadar"]}&app=app&cr=true'
+            st_parameter = requests.utils.dict_from_cookiejar(
+                self.auth_data.cookie_jar)["BA-tassadar"]
+            start_uri = f'{self.blizzard_battlenet_login_url}/flow/' \
+                            f'app.app?step=login&ST={st_parameter}&app=app&cr=true'
             auth_params = {
                 "window_title": "Login to Battle.net",
                 "window_width": 540,
                 "window_height": 700,
-                "start_uri": _URI,
+                "start_uri": start_uri,
                 "end_uri_regex": r".*accountName.*"
             }
             self.attempted_to_set_battle_tag = True
@@ -168,3 +156,47 @@ class AuthenticatedHttpClient(object):
             "user_details_cache": self.user_details
         }
         self._plugin.store_credentials(creds)
+
+    @property
+    def region(self):
+        if self._region is None:
+            self._region = guess_region(self._plugin.local_client)
+        return self._region
+
+    @region.setter
+    def region(self, value):
+        self._region = value
+
+    @property
+    def blizzard_accounts_url(self):
+        if self.region == 'cn':
+            return "https://account.blizzardgames.cn"
+        else:
+            return f"https://{self.region}.account.blizzard.com"
+
+    @property
+    def blizzard_oauth_url(self):
+        if self.region == 'cn':
+            return "https://www.battlenet.com.cn/oauth"
+        else:
+            return f"https://{self.region}.battle.net/oauth"
+    @property
+    def blizzard_api_url(self):
+        if self.region == 'cn':
+            return "https://gateway.battlenet.com.cn"
+        else:
+            return f"https://{self.region}.api.blizzard.com"
+
+    @property
+    def blizzard_battlenet_download_url(self):
+        if self.region == 'cn':
+            return "https://cn.blizzard.com/zh-cn/apps/battle.net/desktop"
+        else:
+            return "https://www.blizzard.com/apps/battle.net/desktop"
+
+    @property
+    def blizzard_battlenet_login_url(self):
+        if self.region == 'cn':
+            return 'https://www.battlenet.com.cn/login/zh'
+        else:
+            return f'https://{self.region}.battle.net/login/en'

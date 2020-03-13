@@ -16,7 +16,7 @@ elif sys.platform == 'darwin':
 
 if SYSTEM == Platform.WINDOWS:
     AGENT_PATH = os.path.expandvars(r'%ALLUSERSPROFILE%\Battle.net\Agent')
-    CONFIG_PATH = os.path.expandvars(r'%APPDATA%\Battle.net\Battle.net.config')    
+    CONFIG_PATH = os.path.expandvars(r'%APPDATA%\Battle.net\Battle.net.config')
 elif SYSTEM == Platform.MACOS:
     AGENT_PATH = '/Users/Shared/Battle.net/Agent'
     CONFIG_PATH = os.path.expanduser('~/Library/Application Support/Battle.net/Battle.net.config')
@@ -33,3 +33,4 @@ WINDOWS_UNINSTALL_LOCATION = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninsta
 
 LS_REGISTER = "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
 
+REGION = ""

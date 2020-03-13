@@ -100,7 +100,7 @@ class BNetPlugin(Plugin):
         self.owned_games_cache = []
 
     async def open_battlenet_browser(self):
-        url = f"https://www.blizzard.com/apps/battle.net/desktop"
+        url = self.authentication_client.blizzard_battlenet_download_url
         log.info(f'Opening battle.net website: {url}')
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda x: webbrowser.open(x, autoraise=True), url)
@@ -335,10 +335,10 @@ class BNetPlugin(Plugin):
                     break
 
             running_games = self.local_client.get_running_games()
-            instaled_games = self.local_client.get_installed_games()
-            log.info(f"Installed games {instaled_games.items()}")
+            installed_games = self.local_client.get_installed_games()
+            log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
-            for id_, game in instaled_games.items():
+            for id_, game in installed_games.items():
                 if game.playable:
                     state = LocalGameState.Installed
                     if id_ in running_games:
@@ -346,7 +346,7 @@ class BNetPlugin(Plugin):
                 else:
                     state = LocalGameState.None_
                 translated_installed_games.append(LocalGame(id_, state))
-            self.local_client.installed_games_cache = instaled_games
+            self.local_client.installed_games_cache = installed_games
             return translated_installed_games
 
         except Exception as e:

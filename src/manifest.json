@@ -4,7 +4,7 @@
     "guid": "ba170431-0649-482f-863b-d248592f1842",
     "version": "1.0.2",
     "description": "Galaxy Battle.net plugin",
-    "author": "FriendsOfGalaxy; Bartosz T.",
+    "author": "FriendsOfGalaxy; Bartosz T.; wanze",
     "email": "bartok765@protonmail.com",
     "url": "https://github.com/bartok765/galaxy_blizzard_plugin",
     "script": "plugin.py"
