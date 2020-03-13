@@ -5,7 +5,7 @@ import json
 from galaxy.api.types import Game, LicenseInfo
 from galaxy.api.consts import LicenseType
 
-from tests.website_mocks import owned_games_backend
+from tests.website_mocks import backend_owned_games
 
 
 @pytest.fixture
