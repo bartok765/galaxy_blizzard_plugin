@@ -371,7 +371,7 @@ class BNetPlugin(Plugin):
             game_time_minutes = None
             if qp_time.count(':') == 1: # minutes and seconds
                 match = re.search('(?:(?P<m>\\d+):)(?P<s>\\d+)', qp_time)
-                game_time_minutes = int(qp_time.group('m'))
+                game_time_minutes = int(match.group('m'))
             elif qp_time.count(':') == 2: # hours, minutes and seconds
                 match = re.search('(?:(?P<h>\\d+):)(?P<m>\\d+)', qp_time)
                 game_time_minutes = int(match.group('h')) * 60 + int(match.group('m'))
