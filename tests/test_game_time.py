@@ -50,6 +50,7 @@ async def test_overwatch_missing_profile(pg, backend_mock, ow_player_data_respon
     ({'quickplay': "628:53:21", 'competitive': "07:29:56"}, 628*60+53),
     ({'quickplay': "628:53:21", 'competitive': "0:00"}, 628*60+53),
     ({'quickplay': "0:00", 'competitive': "0:00"}, 0),
+    ({'quickplay': None, 'competitive': None}, 0),
 ])
 async def test_overwatch_public_profile(
     playtime, minutes,

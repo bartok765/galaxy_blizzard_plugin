@@ -369,6 +369,9 @@ class BNetPlugin(Plugin):
                 return GameTime(game_id, None, None)
             qp_time = player_data['playtime']['quickplay']
             game_time_minutes = None
+            if qp_time is None:
+                # user has not played quick play
+                return GameTime(game_id, 0, None)
             if qp_time.count(':') == 1: # minutes and seconds
                 match = re.search('(?:(?P<m>\\d+):)(?P<s>\\d+)', qp_time)
                 game_time_minutes = int(match.group('m'))
