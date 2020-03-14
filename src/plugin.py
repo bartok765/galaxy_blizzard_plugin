@@ -362,6 +362,7 @@ class BNetPlugin(Plugin):
         game_time_minutes = None
         if game_id == "5272175":
             game_time_minutes = await self._get_overwatch_time()
+            log.debug(f"Gametime for Overwatch is {game_time_minutes} minutes.")
         return GameTime(game_id, game_time_minutes, None)
 
     async def _get_overwatch_time(self) -> Union[None, int]:
