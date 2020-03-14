@@ -88,3 +88,29 @@ Build zip package with name indicating current version:
 ```bash
 inv pack
 ```
+
+### Compile new/changed .proto files
+1. Download the [latest protoc binary](https://github.com/protocolbuffers/protobuf/releases/latest) (protoc-*.zip)
+2. Run compiler
+    - Windows:
+```bash
+cd src && dir bnet\protocol\*.proto /s/b > protoc.txt && protoc -I=%CD% --python_out=%CD% @protoc.txt && del protos.txt
+```
+
+Proto source: https://github.com/HearthSim/hsproto/tree/proto2/proto/bnet
+
+### Log files location
+- Windows: `%programdata%\GOG.com\Galaxy\logs\plugin-battlenet-*.log`
+- MacOS: `/Users/Shared/GOG.com/Galaxy/Logs/plugin-battlenet-*.log`
+
+##
+If you have classic blizzard games which are not properly detected as installed or don't launch when clicking 'play'
+please provide the name and values of the games key under
+
+```Computer\HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\```
+
+registry path.
+
+If on MAC please provide the games bundle_id which can be found by calling
+
+```/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister -dump | grep {game_name}```

@@ -1,0 +1,18 @@
+package bnet.protocol;
+
+message EntityId {
+	required fixed64 high = 1;
+	required fixed64 low = 2;
+}
+
+message Identity {
+	optional EntityId account_id = 1;
+	optional EntityId game_account_id = 2;
+}
+
+message AccountInfo {
+	optional bool account_paid = 1 [default = false];
+	optional fixed32 country_id = 2 [default = 0];
+	optional string battle_tag = 3;
+	optional bool manual_review = 4 [default = false];
+}

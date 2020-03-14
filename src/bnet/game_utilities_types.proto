@@ -1,0 +1,10 @@
+package bnet.protocol.game_utilities;
+import "bnet/attribute.proto";
+import "bnet/entity.proto";
+
+
+message PlayerVariables {
+	required Identity identity = 1;
+	optional double rating = 2;
+	repeated attribute.Attribute attribute = 3;
+}

@@ -1,0 +1,11 @@
+package bnet.protocol.game_master;
+import "bnet/attribute.proto";
+
+
+message GameProperties {
+	repeated attribute.Attribute creation_attributes = 1;
+	optional attribute.AttributeFilter filter = 2;
+	optional bool create = 3 [default = false];
+	optional bool open = 4 [default = true];
+	optional fixed32 program_id = 5;
+}

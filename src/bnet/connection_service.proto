@@ -1,0 +1,59 @@
+package bnet.protocol.connection;
+import "bnet/content_handle.proto";
+import "bnet/rpc.proto";
+
+
+message ConnectRequest {
+	optional ProcessId client_id = 1;
+	optional BindRequest bind_request = 2;
+}
+
+message ConnectionMeteringContentHandles {
+	repeated ContentHandle content_handle = 1;
+}
+
+message ConnectResponse {
+	required ProcessId server_id = 1;
+	optional ProcessId client_id = 2;
+	optional uint32 bind_result = 3;
+	optional BindResponse bind_response = 4;
+	optional ConnectionMeteringContentHandles content_handle_array = 5;
+	optional uint64 server_time = 6;
+}
+
+message BoundService {
+	required fixed32 hash = 1;
+	required uint32 id = 2;
+}
+
+message BindRequest {
+	repeated fixed32 imported_service_hash = 1;
+	repeated BoundService exported_service = 2;
+}
+
+message BindResponse {
+	repeated uint32 imported_service_id = 1 [packed = true];
+}
+
+message EchoRequest {
+	optional fixed64 time = 1;
+	optional bool network_only = 2 [default = false];
+	optional bytes payload = 3;
+}
+
+message EchoResponse {
+	optional fixed64 time = 1;
+	optional bytes payload = 2;
+}
+
+message DisconnectRequest {
+	required uint32 error_code = 1;
+}
+
+message DisconnectNotification {
+	required uint32 error_code = 1;
+	optional string reason = 2;
+}
+
+message EncryptRequest {
+}

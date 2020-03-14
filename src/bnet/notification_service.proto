@@ -1,0 +1,32 @@
+package bnet.protocol.notification;
+import "bnet/attribute.proto";
+import "bnet/entity.proto";
+import "bnet/rpc.proto";
+
+
+message Notification {
+	optional EntityId sender_id = 1;
+	required EntityId target_id = 2;
+	required string type = 3;
+	repeated attribute.Attribute attribute = 4;
+	optional EntityId sender_account_id = 5;
+	optional EntityId target_account_id = 6;
+	optional string sender_battle_tag = 7;
+}
+
+message FindClientRequest {
+	required EntityId entity_id = 1;
+}
+
+message FindClientResponse {
+	required uint32 label = 1;
+	optional ProcessId client_process_id = 2;
+}
+
+message RegisterClientRequest {
+	required EntityId entity_id = 1;
+}
+
+message UnregisterClientRequest {
+	required EntityId entity_id = 1;
+}

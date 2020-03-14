@@ -1,0 +1,90 @@
+package bnet.protocol.channel;
+import "bnet/channel_types.proto";
+import "bnet/entity.proto";
+
+
+message AddMemberRequest {
+	optional EntityId agent_id = 1;
+	required Identity member_identity = 2;
+	required MemberState member_state = 3;
+	required uint64 object_id = 4;
+	optional bool subscribe = 5 [default = true];
+}
+
+message RemoveMemberRequest {
+	optional EntityId agent_id = 1;
+	required EntityId member_id = 2;
+	optional uint32 reason = 3;
+}
+
+message UnsubscribeMemberRequest {
+	optional EntityId agent_id = 1;
+	required EntityId member_id = 2;
+}
+
+message SendMessageRequest {
+	optional EntityId agent_id = 1;
+	required Message message = 2;
+	optional uint64 required_privileges = 3 [default = 0];
+}
+
+message UpdateChannelStateRequest {
+	optional EntityId agent_id = 1;
+	required ChannelState state_change = 2;
+}
+
+message UpdateMemberStateRequest {
+	optional EntityId agent_id = 1;
+	repeated Member state_change = 2;
+	repeated uint32 removed_role = 3 [packed = true];
+}
+
+message DissolveRequest {
+	optional EntityId agent_id = 1;
+	optional uint32 reason = 2;
+}
+
+message SetRolesRequest {
+	optional EntityId agent_id = 1;
+	repeated uint32 role = 2 [packed = true];
+	repeated EntityId member_id = 3;
+}
+
+message AddNotification {
+	optional Member self = 1;
+	repeated Member member = 2;
+	required ChannelState channel_state = 3;
+}
+
+message JoinNotification {
+	required Member member = 1;
+}
+
+message RemoveNotification {
+	optional EntityId agent_id = 1;
+	required EntityId member_id = 2;
+	optional uint32 reason = 3;
+}
+
+message LeaveNotification {
+	optional EntityId agent_id = 1;
+	required EntityId member_id = 2;
+	optional uint32 reason = 3;
+}
+
+message SendMessageNotification {
+	optional EntityId agent_id = 1;
+	required Message message = 2;
+	optional uint64 required_privileges = 3 [default = 0];
+}
+
+message UpdateChannelStateNotification {
+	optional EntityId agent_id = 1;
+	required ChannelState state_change = 2;
+}
+
+message UpdateMemberStateNotification {
+	optional EntityId agent_id = 1;
+	repeated Member state_change = 2;
+	repeated uint32 removed_role = 3 [packed = true];
+}

@@ -1,0 +1,39 @@
+package bnet.protocol.presence;
+import "bnet/entity.proto";
+import "bnet/presence_types.proto";
+
+
+message SubscribeRequest {
+	optional EntityId agent_id = 1;
+	required EntityId entity_id = 2;
+	required uint64 object_id = 3;
+	repeated fixed32 program_id = 4;
+}
+
+message SubscribeNotificationRequest {
+	required EntityId entity_id = 1;
+}
+
+message UnsubscribeRequest {
+	optional EntityId agent_id = 1;
+	required EntityId entity_id = 2;
+}
+
+message UpdateRequest {
+	required EntityId entity_id = 1;
+	repeated FieldOperation field_operation = 2;
+}
+
+message QueryRequest {
+	required EntityId entity_id = 1;
+	repeated FieldKey key = 2;
+}
+
+message QueryResponse {
+	repeated Field field = 2;
+}
+
+message OwnershipRequest {
+	required EntityId entity_id = 1;
+	optional bool release_ownership = 2 [default = false];
+}

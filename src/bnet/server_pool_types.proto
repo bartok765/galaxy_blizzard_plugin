@@ -1,0 +1,28 @@
+package bnet.protocol.server_pool;
+import "bnet/attribute.proto";
+import "bnet/rpc.proto";
+
+
+message GetLoadRequest {
+}
+
+message ServerState {
+	optional float current_load = 1 [default = 1];
+	optional uint32 game_count = 2 [default = 0];
+	optional uint32 player_count = 3 [default = 0];
+}
+
+message ServerInfo {
+	required ProcessId host = 1;
+	optional bool replace = 2 [default = false];
+	optional ServerState state = 3;
+	repeated attribute.Attribute attribute = 4;
+	optional fixed32 program_id = 5;
+}
+
+message PoolStateRequest {
+}
+
+message PoolStateResponse {
+	repeated ServerInfo info = 1;
+}
