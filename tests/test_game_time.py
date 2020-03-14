@@ -6,7 +6,6 @@ from unittest.mock import Mock
 import pytest
 from galaxy.api.types import GameTime
 
-from src.backend import BackendClient
 from tests.async_mock import AsyncMock
 
 # pytest-asyncio: all test coroutines will be treated as marked.
@@ -14,7 +13,6 @@ pytestmark = pytest.mark.asyncio
 
 OW_ID = '5272175'
 NO_GAME_TIME = GameTime(OW_ID, None, None)
-
 
 
 @pytest.fixture()

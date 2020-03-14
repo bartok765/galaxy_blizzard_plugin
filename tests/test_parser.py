@@ -23,7 +23,6 @@ def test_config_parser_decode_last_played():
 
 
 def test_config_parser(config_data):
-    print(config_data)
     parser = ConfigParser(config_data)
     assert parser.locale_language == 'plPL'
     assert parser.region == 'EU'
