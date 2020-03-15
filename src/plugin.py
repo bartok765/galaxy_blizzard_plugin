@@ -13,7 +13,7 @@ import time
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime
 from galaxy.api.errors import ( AuthenticationRequired,
     BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
 )
@@ -451,6 +451,22 @@ class BNetPlugin(Plugin):
     async def shutdown(self):
         log.info("Plugin shutdown.")
         await self.authentication_client.shutdown()
+
+    async def get_game_time(self, game_id, context):
+        if self.local_client.load_local_files_done:
+            for game in self.local_client.config_parser.games:
+                try:
+                    blizzard_game = Blizzard[game.uid]
+                except KeyError:
+                    log.warning(f'[{game.uid}] is not known blizzard game. Skipping')
+                    return None
+
+                if blizzard_game.id == game_id:
+                    last_played = int(game.last_played)
+                    log.debug(f'get_game_time return {game_id} {last_played}')
+                    return GameTime(game_id, None, last_played_time=last_played)
+
+        log.warning(f'warning get_game_time failed for {game_id}')
 
 
 def main():
