@@ -9,13 +9,15 @@ import requests.cookies
 import logging as log
 import subprocess
 import time
-
+import re
+from typing import Union
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame
-from galaxy.api.errors import ( AuthenticationRequired,
-    BackendTimeout, BackendNotAvailable, BackendError, NetworkError, UnknownError, InvalidCredentials
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime
+from galaxy.api.errors import (
+    AuthenticationRequired, BackendTimeout, BackendNotAvailable, BackendError,
+    NetworkError, UnknownError, InvalidCredentials, UnknownBackendResponse
 )
 
 from version import __version__ as version
@@ -100,7 +102,7 @@ class BNetPlugin(Plugin):
         self.owned_games_cache = []
 
     async def open_battlenet_browser(self):
-        url = f"https://www.blizzard.com/apps/battle.net/desktop"
+        url = self.authentication_client.blizzard_battlenet_download_url
         log.info(f'Opening battle.net website: {url}')
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda x: webbrowser.open(x, autoraise=True), url)
@@ -335,10 +337,10 @@ class BNetPlugin(Plugin):
                     break
 
             running_games = self.local_client.get_running_games()
-            instaled_games = self.local_client.get_installed_games()
-            log.info(f"Installed games {instaled_games.items()}")
+            installed_games = self.local_client.get_installed_games()
+            log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
-            for id_, game in instaled_games.items():
+            for id_, game in installed_games.items():
                 if game.playable:
                     state = LocalGameState.Installed
                     if id_ in running_games:
@@ -346,7 +348,7 @@ class BNetPlugin(Plugin):
                 else:
                     state = LocalGameState.None_
                 translated_installed_games.append(LocalGame(id_, state))
-            self.local_client.installed_games_cache = instaled_games
+            self.local_client.installed_games_cache = installed_games
             return translated_installed_games
 
         except Exception as e:
@@ -355,6 +357,35 @@ class BNetPlugin(Plugin):
 
         finally:
             self.local_games_called = True
+
+    async def get_game_time(self, game_id, context):
+        game_time_minutes = None
+        if game_id == "5272175":
+            game_time_minutes = await self._get_overwatch_time()
+            log.debug(f"Gametime for Overwatch is {game_time_minutes} minutes.")
+        return GameTime(game_id, game_time_minutes, None)
+
+    async def _get_overwatch_time(self) -> Union[None, int]:
+        log.debug("Fetching playtime for Overwatch...")
+        player_data = await self.backend_client.get_ow_player_data()
+        if 'message' in player_data:  # user not found... unfortunately no 404 status code is returned :/
+            log.error('No Overwatch profile found.')
+            return None
+        if player_data['private'] == True:
+            log.info('Unable to get data as Overwatch profile is private.')
+            return None
+        qp_time = player_data['playtime']['quickplay']
+        if qp_time is None:  # user has not played quick play
+            return 0
+        if qp_time.count(':') == 1:  # minutes and seconds
+            match = re.search('(?:(?P<m>\\d+):)(?P<s>\\d+)', qp_time)
+            if match:
+                return int(match.group('m'))
+        elif qp_time.count(':') == 2:  # hours, minutes and seconds
+            match = re.search('(?:(?P<h>\\d+):)(?P<m>\\d+)', qp_time)
+            if match:
+                return int(match.group('h')) * 60 + int(match.group('m'))
+        raise UnknownBackendResponse(f'Unknown Overwatch API playtime format: {qp_time}')
 
     async def _get_wow_achievements(self):
         achievements = []

@@ -200,14 +200,14 @@ class BaseLocalClient(abc.ABC):
                 self.config_parser = ConfigParser(None)
                 return False
             else:
-                raise ()
+                raise e
         except OSError as e:
             if e.errno == errno.EACCES:
                 log.warning(f"config file not accessible: {repr(e)}")
                 self.config_parser = ConfigParser(None)
                 return False
             else:
-                raise ()
+                raise e
         return True
 
     async def _register_local_data_watcher(self):

@@ -64,7 +64,9 @@ class WinLocalClient(BaseLocalClient):
     def _find_main_renderer_window(self):
         """Get Blizzard renderer window (main window, not login)
         :return     int number of window; 0 if window not found"""
-        return ctypes.windll.user32.FindWindowW(None, "Blizzard Battle.net")
+        return ctypes.windll.user32.FindWindowW(None, "Blizzard Battle.net") or \
+               ctypes.windll.user32.FindWindowW(None, "Battle.net") or \
+               ctypes.windll.user32.FindWindowW(None, "暴雪战网")
 
     def _is_main_window_open(self):
         return bool(self._find_main_renderer_window())

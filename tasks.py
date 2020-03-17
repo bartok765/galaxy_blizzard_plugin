@@ -14,8 +14,10 @@ with open(os.path.join("src", "manifest.json"), "r") as f:
 
 if sys.platform == 'win32':
     DIST_DIR = os.environ['localappdata'] + '\\GOG.com\\Galaxy\\plugins\\installed'
+    PIP_PLATFORM = "win32"
 elif sys.platform == 'darwin':
     DIST_DIR = os.path.realpath("~/Library/Application Support/GOG.com/Galaxy/plugins/installed")
+    PIP_PLATFORM = "macosx_10_13_x86_64"  # @see https://github.com/FriendsOfGalaxy/galaxy-integrations-updater/blob/master/scripts.py
 
 
 @task
@@ -35,6 +37,7 @@ def build(c, output='build', ziparchive=None):
         'pip', 'install',
         '-r', tmp.name,
         '--python-version', '37',
+        '--platform', PIP_PLATFORM,
         '--target "{}"'.format(output),
         '--no-compile',
         '--no-deps'
