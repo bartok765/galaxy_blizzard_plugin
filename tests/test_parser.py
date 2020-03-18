@@ -16,7 +16,7 @@ def test_config_parser_decode_installed():
 
 def test_config_parser_decode_last_played():
     parser = ConfigParser(None)
-    games = parser.decode({ "s2": { "LastPlayed": "1552039613" } }) 
+    games = parser.decode({ "s2": { "LastPlayed": "1552039613" } })
     assert games[0].uid == "s2"
     assert games[0].uninstall_tag == None
     assert games[0].last_played == '1552039613'
@@ -25,7 +25,7 @@ def test_config_parser_decode_last_played():
 def test_config_parser(config_data):
     parser = ConfigParser(config_data)
     assert parser.locale_language == 'plPL'
-    assert parser.region == 'US'
+    assert parser.region == 'EU'
     assert ConfigGameInfo('diablo3', 'diablo3_plpl', None) in parser.games
     assert ConfigGameInfo('heroes', None, '1441712029') in parser.games
     assert ConfigGameInfo('wow', 'wow_enus', None) in parser.games
