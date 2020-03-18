@@ -48,17 +48,14 @@ class BaseLocalClient(abc.ABC):
         self._games_provider = LocalGames()
 
         self.database_parser = None
-        self.config_parser = None
+        self.config_parser = ConfigParser(None)
         self.uninstaller = None
-        self.load_local_files_done = False
         self.installed_games_cache = self.get_installed_games()
 
         loop = asyncio.get_event_loop()
         loop.create_task(self._register_local_data_watcher())
         loop.create_task(self._register_classic_games_updater())
         self.classic_games_parsing_task = None
-
-
 
     @abc.abstractproperty
     def is_installed(self):
@@ -211,8 +208,6 @@ class BaseLocalClient(abc.ABC):
                 return False
             else:
                 raise e
-
-        self.load_local_files_done = True
         return True
 
     async def _register_local_data_watcher(self):

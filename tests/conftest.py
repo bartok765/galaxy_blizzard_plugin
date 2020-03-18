@@ -121,7 +121,7 @@ async def backend_mock():
 
 @pytest.fixture()
 def local_client_mock():
-    return Mock()
+    return MagicMock()
 
 
 @pytest.fixture()
