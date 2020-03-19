@@ -370,7 +370,7 @@ class BNetPlugin(Plugin):
             try:
                 blizzard_game = Blizzard[game.uid]
             except KeyError:
-                break
+                continue
 
             if (blizzard_game.id == game_id) and (game.last_played is not None):
                 last_played_time = int(game.last_played)

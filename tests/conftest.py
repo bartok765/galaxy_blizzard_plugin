@@ -6,6 +6,7 @@ import pytest
 import plugin
 
 from src.backend import BackendClient
+from src.local_client import LocalClient
 
 from tests.async_mock import AsyncMock
 from tests.website_mocks import user_info, credentials
@@ -118,10 +119,16 @@ async def backend_mock():
     mock.get_ow_player_data = AsyncMock()
     return mock
 
+@pytest.fixture()
+def config_parser():
+    return MagicMock()
 
 @pytest.fixture()
-def local_client_mock():
-    return MagicMock()
+def local_client_mock(config_parser):
+    mock = MagicMock(spec=LocalClient)
+    mock.launch_game = AsyncMock()  # just an example of async method mock
+    mock.config_parser = config_parser
+    return mock
 
 
 @pytest.fixture()
