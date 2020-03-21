@@ -71,9 +71,6 @@ async def test_last_played_when_unknown_game_in_config(pg, config_parser):
     with pytest.raises(KeyError):
         assert Blizzard[unknown_game_uid]  # test precondition
 
-    # this way we fill mocks with desired data we want to test; the trick is pg fixture uses
-    # config_parser internally as part of local_client, but it can be also:
-    # pg.local_client.config_parser.games = ... (but sometimes it's not possible)
     config_parser.games = [
         ConfigGameInfo(unknown_game_uid, 'mock', '111111111'),
         ConfigGameInfo(game.uid, 'diablo3_enus', '1441712029')
