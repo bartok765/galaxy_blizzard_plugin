@@ -48,7 +48,7 @@ class BaseLocalClient(abc.ABC):
         self._games_provider = LocalGames()
 
         self.database_parser = None
-        self.config_parser = None
+        self.config_parser = ConfigParser(None)
         self.uninstaller = None
         self.installed_games_cache = self.get_installed_games()
 
