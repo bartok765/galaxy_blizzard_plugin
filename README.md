@@ -10,6 +10,10 @@ This plugin allows you to install and launch your Blizzard games via the GOG Gal
 3. Unpack plugin to the plugin folder created in step 2.
 4. Re-connect(or re-start) your GOG Galaxy Client
 
+## Uninstallation
+Click Disconnect button in GOG Galaxy Settings. This will stop plugin process, remove local credentials and remove data from Galaxy Backend. 
+If you see "connect" instead of "disconnect" (this may happen on plugin crash or accessing from different machine) you need to connect it again and then disconnect.
+
 ### From source (tested on windows 10 and macos 10.14 with python 3.7)
 - copy / clone this repo
 - run:
