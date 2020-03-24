@@ -7,6 +7,8 @@ import pytest
 from galaxy.api.types import GameTime
 
 from tests.async_mock import AsyncMock
+from src.definitions import Blizzard, ConfigGameInfo
+from src.parsers import ConfigParser
 
 # pytest-asyncio: all test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio
@@ -60,3 +62,32 @@ async def test_overwatch_public_profile(
     ctx = await pg.prepare_game_times_context([OW_ID])
     result = await pg.get_game_time(OW_ID, ctx)
     assert result == GameTime(OW_ID, minutes, None)
+
+
+@pytest.mark.asyncio
+async def test_last_played_when_unknown_game_in_config(pg, config_parser):
+    game = Blizzard['diablo3']
+    unknown_game_uid = 'unknown_game'
+    with pytest.raises(KeyError):
+        assert Blizzard[unknown_game_uid]  # test precondition
+
+    config_parser.games = [
+        ConfigGameInfo(unknown_game_uid, 'mock', '111111111'),
+        ConfigGameInfo(game.uid, 'diablo3_enus', '1441712029')
+    ]
+
+    ctx = await pg.prepare_game_times_context([game.blizzard_id])
+    result = await pg.get_game_time(game.blizzard_id, ctx)
+    assert result.game_id == game.blizzard_id
+    assert result.last_played_time == 1441712029
+
+async def test_last_played_time(pg, config_data):
+    pg.local_client.config_parser = ConfigParser(config_data)
+
+    ctx = await pg.prepare_game_times_context(["21298", "1214607983"])
+
+    result = await pg.get_game_time("21298", ctx)
+    assert result == GameTime("21298", None, None)
+
+    result = await pg.get_game_time("1214607983", ctx)
+    assert result == GameTime("1214607983", None, 1441712029)

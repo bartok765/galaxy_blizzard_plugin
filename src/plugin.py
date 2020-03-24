@@ -359,11 +359,25 @@ class BNetPlugin(Plugin):
             self.local_games_called = True
 
     async def get_game_time(self, game_id, context):
-        game_time_minutes = None
+        total_time = None
+        last_played_time = None
+
         if game_id == "5272175":
-            game_time_minutes = await self._get_overwatch_time()
-            log.debug(f"Gametime for Overwatch is {game_time_minutes} minutes.")
-        return GameTime(game_id, game_time_minutes, None)
+            total_time = await self._get_overwatch_time()
+            log.debug(f"Gametime for Overwatch is {total_time} minutes.")
+
+        for game in self.local_client.config_parser.games:
+            try:
+                blizzard_game = Blizzard[game.uid]
+            except KeyError:
+                continue
+
+            if (blizzard_game.id == game_id) and (game.last_played is not None):
+                last_played_time = int(game.last_played)
+                log.debug(f'last_played_time {game_id}: {last_played_time}')
+                break
+
+        return GameTime(game_id, total_time, last_played_time)
 
     async def _get_overwatch_time(self) -> Union[None, int]:
         log.debug("Fetching playtime for Overwatch...")
