@@ -5,7 +5,7 @@ This plugin allows you to install and launch your Blizzard games via the GOG Gal
 ## Installation
 Use build-in `Search` engine from GOG Galaxy 2.0 Settings
 
-\* The actual code is downloaded from https://github.com/FriendsOfGalaxy/galaxy-integration-blizzard - reviewed and build by FriendsOfGalaxy
+*Note: The actual code in build-in Search is a reviewed fork https://github.com/FriendsOfGalaxy/galaxy-integration-blizzard prepared by FriendsOfGalaxy*
 
 ### From source (tested on windows 10 and macos 10.14 with python 3.7)
 - copy / clone this repo
@@ -24,13 +24,13 @@ Currently we only support displaying the total playtime of your quickplay matche
 To do that, start up Overwatch and navigate to the Options. From there click the "Social" tab and toggle the option "Career Profile Visibility" to "Public".
 
 
-## Uninstallation
+## Uninstallation (remove all data)
 Click `Disconnect` button in GOG Galaxy Settings. If you see `Connect` instead of `Disconnect` (this may happen on plugin crash or accessing from different machine) you need to connect it again and then disconnect.
 
 ### "Soft" disconnect (advanced)
 If you want to keep imported data (owned games, play time), but do not need to sync more and play with local games, you can "turn off" local plugin:
 - close Galaxy
-- remove plugin local database (on Windows usually at `C:\ProgramData\GOG.com\Galaxy\storage\pluginsGalaxy`).
+- remove plugin local database (on Windows usually at `C:\ProgramData\GOG.com\Galaxy\storage\plugins`).
 
 ## Help us finding Classic Blizzard Games
 
