@@ -102,24 +102,26 @@ class BaseLocalClient(abc.ABC):
             await asyncio.sleep(0.2)
         raise TimeoutError(f'Timeout reached when waiting for gameview from Battle.net')
 
-    def install_game(self, id):
+    def install_game(self, id, region='eu'):
         if not self.is_installed:
             raise ClientNotInstalledError()
-        game = Blizzard[id]
+
+        uid = Blizzard.blizzard_id_to_uid(id, region=region)
+
         args = [
             self._exe,
             "--install",
-            f"--game={game.uid}"
+            f"--game={uid}"
         ]
         subprocess.Popen(args, cwd=os.path.dirname(self._exe))
 
-    def open_battlenet(self, id=None):
+    def open_battlenet(self, id=None, region='eu'):
         if not self.is_installed or not self._exe:
             raise ClientNotInstalledError()
         if id:
-            game = Blizzard[id]
+            uid = Blizzard.blizzard_id_to_uid(id, region=region)
             args = {self._exe,
-                    f"--game={game.uid}"}
+                    f"--game={uid}"}
         else:
             args = {self._exe}
         subprocess.Popen(args, cwd=os.path.dirname(self._exe))

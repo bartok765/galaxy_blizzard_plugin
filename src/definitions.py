@@ -92,7 +92,7 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('destiny2', 'Destiny 2', '1146311730', 'DST2', False),
         BlizzardGame('hs_beta', 'Hearthstone', '1465140039', 'WTCG', True),
         BlizzardGame('heroes', 'Heroes of the Storm', '1214607983', 'Hero', True),
-        BlizzardGame('d3cn', '暗黑破壞神III', '?', 'D3CN', False),
+        BlizzardGame('d3cn', '暗黑破壞神III', '17459', 'D3CN', False),
         BlizzardGame('diablo3', 'Diablo III', '17459', 'D3', True),
         BlizzardGame('viper', 'Call of Duty: Black Ops 4', '1447645266', 'VIPR', False),
         BlizzardGame('odin', 'Call of Duty: Modern Warfare', '1329875278', 'ODIN', False),
@@ -130,6 +130,15 @@ class _Blizzard(object, metaclass=Singleton):
     def legacy_games(self):
         return [game for game in self._GAMES if isinstance(game, ClassicGame)]
 
+    def blizzard_id_to_uid(self, blizzard_id, region='eu'):
+        if region == 'cn' and blizzard_id == '17459':
+            return 'd3cn'
+        else:
+            for game in self._GAMES:
+                if game.id == blizzard_id:
+                    return game.uid
+
+            raise ValueError('can not found that blizzard_id')
 
 Blizzard = _Blizzard()
 
