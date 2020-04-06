@@ -10,7 +10,7 @@ import logging as log
 import subprocess
 import time
 import re
-from typing import Union
+from typing import Union, List
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
@@ -297,9 +297,9 @@ class BNetPlugin(Plugin):
                     for game in Blizzard.free_games if game.blizzard_id not in owned_games_ids]
 
         try:
-            games = await self.backend_client.get_owned_games()
+            normal_games = await self.backend_client.get_owned_games()
             classic_games = _parse_classic_games(await self.backend_client.get_owned_classic_games())
-            owned_games = games["gameAccounts"] + classic_games["classicGames"]
+            owned_games = normal_games["gameAccounts"] + classic_games["classicGames"]
 
             # Add wow classic if retail wow is present in owned games
             for owned_game in owned_games.copy():
@@ -311,16 +311,27 @@ class BNetPlugin(Plugin):
 
             free_games_to_add = _get_not_added_free_games(owned_games)
             owned_games += free_games_to_add
+
             self.owned_games_cache = owned_games
-            return [
-                Game(
-                    str(game["titleId"]),
-                    game["localizedGameName"],
-                    [],
+
+            staging: List[Game] = []
+            for game in self.owned_games_cache:
+                if 'titleId' not in game:
+                    continue
+                try:
+                    known_game = Blizzard[game['titleId']]
+                except KeyError:
+                    log.warning(f"Unknown game title: {game['titleId']}: {game['localizedGameName']}")
+                    continue
+                staging.append(Game(
+                    known_game.uid,
+                    known_game.name,
+                    None,
                     LicenseInfo(License_Map[game["gameAccountStatus"]]),
-                )
-                for game in self.owned_games_cache if "titleId" in game
-            ]
+                ))
+
+            return staging
+
         except Exception as e:
             log.exception(f"failed to get owned games: {repr(e)}")
             raise
