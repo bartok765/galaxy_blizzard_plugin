@@ -1,8 +1,9 @@
 ﻿import dataclasses as dc
 import json
 import requests
-from typing import Optional
+from typing import Optional, Dict
 from galaxy.api.consts import LicenseType
+
 
 License_Map = {
     None: LicenseType.Unknown,
@@ -13,6 +14,7 @@ License_Map = {
     "Free": LicenseType.FreeToPlay
 }
 
+
 class DataclassJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if dc.is_dataclass(o):
@@ -22,7 +24,7 @@ class DataclassJSONEncoder(json.JSONEncoder):
 
 @dc.dataclass
 class WebsiteAuthData(object):
-    cookie_jar: requests.cookies.RequestsCookieJar()
+    cookie_jar: requests.cookies.RequestsCookieJar
     access_token: str
     region: str
 
@@ -47,10 +49,10 @@ class ClassicGame(object):
     name: str
     family: str
     free_to_play: bool
-    registry_path: str = None
-    registry_installation_key: str = None
-    exe: str = None
-    bundle_id: str = None
+    registry_path: Optional[str] = None
+    registry_installation_key: Optional[str] = None
+    exe: Optional[str] = None
+    bundle_id: Optional[str] = None
 
     @property
     def id(self):
@@ -73,7 +75,7 @@ class ProductDbInfo(object):
 
 
 class Singleton(type):
-    _instances = {}
+    _instances = {}  # type: ignore
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -104,9 +106,7 @@ class _Blizzard(object, metaclass=Singleton):
     ]
 
     def __init__(self):
-        self.__games = {}
-        for game in self._GAMES:
-            self.__games[game.id] = game
+        self.__games = {game.id: game for game in self._GAMES}
 
     def __getitem__(self, key):
         for game in self._GAMES:
