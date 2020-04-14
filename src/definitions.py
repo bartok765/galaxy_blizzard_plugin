@@ -98,7 +98,7 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('odin', 'Call of Duty: Modern Warfare', '1329875278', 'ODIN', False),
         ClassicGame('d2', 'Diablo® II', 'Diablo II', False, 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
         ClassicGame('d2LOD', 'Diablo® II: Lord of Destruction®', 'Diablo II', False),
-        ClassicGame('w3ROC', 'Warcraft® III: Reign of Chaos',  'Warcraft III', False, 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
+        ClassicGame('w3ROC', 'Warcraft® III: Reign of Chaos®',  'Warcraft III', False, 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
         ClassicGame('w3tft', 'Warcraft® III: The Frozen Throne®',  'Warcraft III', False, 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
         ClassicGame('sca', 'StarCraft® Anthology',  'Starcraft', False, 'StarCraft')
     ]
