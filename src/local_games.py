@@ -104,7 +104,7 @@ class LocalGames():
             try:
                 reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
                 with winreg.OpenKey(reg, WINDOWS_UNINSTALL_LOCATION) as key:
-                    for game in Blizzard.legacy_games:
+                    for game in Blizzard.CLASSIC_GAMES:
                         log.debug(f"Checking if {game} is in registry ")
                         installed_game = self._add_classic_game(game, key)
                         if installed_game:
@@ -113,7 +113,7 @@ class LocalGames():
                 log.exception(f"Exception while looking for installed classic games {e}")
         else:
             proc = subprocess.run([LS_REGISTER,"-dump"], encoding='utf-8',stdout=subprocess.PIPE)
-            for game in Blizzard.legacy_games:
+            for game in Blizzard.CLASSIC_GAMES:
                 if game.bundle_id:
                     if game.bundle_id in proc.stdout:
                         classic_games[game.id] = InstalledGame(
