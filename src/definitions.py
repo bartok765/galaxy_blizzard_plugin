@@ -26,16 +26,17 @@ class BlizzardGame:
 
 
 @dc.dataclass
-class BattlenetGame(BlizzardGame):
-    free_to_play: bool
-
-
-@dc.dataclass
 class ClassicGame(BlizzardGame):
     registry_path: Optional[str] = None
     registry_installation_key: Optional[str] = None
     exe: Optional[str] = None
     bundle_id: Optional[str] = None
+
+
+@dc.dataclass
+class RegionalGameInfo:
+    uid: str
+    try_for_free: bool
 
 
 @dc.dataclass
@@ -64,40 +65,38 @@ class Singleton(type):
 
 
 class _Blizzard(object, metaclass=Singleton):
-    BACKEND_ID_UID = {
-        '21297': 's1',
-        '21298': 's2',
-        '5730135': 'wow',
-        '5272175': 'prometheus',
-        '?': 'w3',  # TODO ask for help in Readme
-        '1146311730': 'destiny2',
-        '1465140039': 'hs_beta',
-        '1214607983': 'heroes',
-        '17459': 'diablo3',
-        '1447645266': 'viper',
-        '1329875278': 'odin'
+    TITLE_IDS_MAP = {
+        '21297': RegionalGameInfo('s1', True),
+        '21298': RegionalGameInfo('s2', True),
+        '5730135': RegionalGameInfo('wow', True),
+        '5272175': RegionalGameInfo('prometheus', False),
+        '?': RegionalGameInfo('w3', False),  # TODO ask for help in Readme
+        '1146311730': RegionalGameInfo('destiny2', False),
+        '1465140039': RegionalGameInfo('hs_beta', True),
+        '1214607983': RegionalGameInfo('heroes', True),
+        '17459': RegionalGameInfo('diablo3', True),
+        '1447645266': RegionalGameInfo('viper', False),
+        '1329875278': RegionalGameInfo('odin', False)
     }
-    BACKEND_ID_UID_CN = {
-        **BACKEND_ID_UID,
-        '17459': 'd3cn'
+    TITLE_IDS_MAP_CN = {
+        **TITLE_IDS_MAP,
+        '17459': RegionalGameInfo('d3cn', False)
     }
-
     BATTLENET_GAMES = {
-        BattlenetGame('s1', 'StarCraft', 'S1', True),
-        BattlenetGame('s2', 'StarCraft II', 'S2', True),
-        BattlenetGame('wow', 'World of Warcraft', 'WoW', True),
-        BattlenetGame('wow_classic', 'World of Warcraft Classic', 'WoW_wow_classic', False),
-        BattlenetGame('prometheus', 'Overwatch', 'Pro', False),
-        BattlenetGame('w3', 'Warcraft III', 'W3', False),
-        BattlenetGame('destiny2', 'Destiny 2', 'DST2', False),
-        BattlenetGame('hs_beta', 'Hearthstone', 'WTCG', True),
-        BattlenetGame('heroes', 'Heroes of the Storm', 'Hero', True),
-        BattlenetGame('d3cn', '暗黑破壞神III', 'D3CN', False),
-        BattlenetGame('diablo3', 'Diablo III', 'D3', True),
-        BattlenetGame('viper', 'Call of Duty: Black Ops 4', 'VIPR', False),
-        BattlenetGame('odin', 'Call of Duty: Modern Warfare', 'ODIN', False),
+        BlizzardGame('s1', 'StarCraft', 'S1'),
+        BlizzardGame('s2', 'StarCraft II', 'S2'),
+        BlizzardGame('wow', 'World of Warcraft', 'WoW'),
+        BlizzardGame('wow_classic', 'World of Warcraft Classic', 'WoW_wow_classic'),
+        BlizzardGame('prometheus', 'Overwatch', 'Pro'),
+        BlizzardGame('w3', 'Warcraft III', 'W3'),
+        BlizzardGame('destiny2', 'Destiny 2', 'DST2'),
+        BlizzardGame('hs_beta', 'Hearthstone', 'WTCG'),
+        BlizzardGame('heroes', 'Heroes of the Storm', 'Hero'),
+        BlizzardGame('d3cn', '暗黑破壞神III', 'D3CN'),
+        BlizzardGame('diablo3', 'Diablo III', 'D3'),
+        BlizzardGame('viper', 'Call of Duty: Black Ops 4', 'VIPR'),
+        BlizzardGame('odin', 'Call of Duty: Modern Warfare', 'ODIN'),
     }
-
     CLASSIC_GAMES = [
         ClassicGame('d2', 'Diablo® II', 'Diablo II', 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
         ClassicGame('d2LOD', 'Diablo® II: Lord of Destruction®', 'Diablo II'),  # TODO exe and bundleid
@@ -109,14 +108,38 @@ class _Blizzard(object, metaclass=Singleton):
     def __init__(self):
         self._games = {game.uid: game for game in self.BATTLENET_GAMES + self.CLASSIC_GAMES}
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> BlizzardGame:
+        """
+        :param key: str can be uid (eg. "prometheus") or family (eg. "Pro")
+        :returns: game by `key`
+        """
         try:
             return self._games[key]
-        except KeyError as e:  # check for family
+        except KeyError as e:
             for g in self._games.values():
                 if g.family == key:
                     return g
         raise e
+
+    def game_by_title_id(self, title_id: str, cn: bool) -> BlizzardGame:
+        """
+        :param cn: flag if china game definitions should be search though
+        :raises KeyError: when unknown title_id for given region
+        """
+        if cn:
+            return self._games[self.TITLE_IDS_MAP_CN[title_id]]
+        else:
+            return self._games[self.TITLE_IDS_MAP[title_id]]
+
+    def try_for_free_games(self, cn: bool) -> List[BlizzardGame]:
+        """
+        :param cn: flag if china game definitions should be search though
+        """
+        return [
+            self._games[info.uid] for info
+            in (self.TITLE_IDS_MAP_CN if cn else self.TITLE_IDS_MAP).values()
+            if info.try_for_free
+        ]
 
 
 Blizzard = _Blizzard()

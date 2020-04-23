@@ -270,7 +270,7 @@ class BNetPlugin(Plugin):
         if not self.authentication_client.is_authenticated():
             raise AuthenticationRequired()
 
-        def _parse_standard_games(standard_games: dict) -> Dict[BattlenetGame, LicenseType]:
+        def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BattlenetGame, LicenseType]:
             licenses = {
                 None: LicenseType.Unknown,
                 "Trial": LicenseType.SinglePurchase,
@@ -282,16 +282,13 @@ class BNetPlugin(Plugin):
             games = {}
 
             for standard_game in standard_games["gameAccounts"]:
-                titleId = standard_game['titleId']
+                title_id = standard_game['titleId']
                 try:
-                    if self.authentication_client.region == 'cn':
-                        uid = Blizzard.BACKEND_ID_UID_CN[titleId]
-                    else:
-                        uid = Blizzard.BACKEND_ID_UID[titleId]
+                    game = Blizzard.game_by_title_id(title_id, cn)
                 except KeyError:
-                    log.warning(f"Skipping unknown game with titleId: {titleId}")
+                    log.warning(f"Skipping unknown game with titleId: {title_id}")
                 else:
-                    games[Blizzard[uid]] = licenses[standard_game.get("gameAccountStatus")]
+                    games[game] = licenses[standard_game.get("gameAccountStatus")]
 
             # Add wow classic if retail wow is present in owned games
             wow_license = games.get(Blizzard['wow'])
@@ -311,26 +308,20 @@ class BNetPlugin(Plugin):
                     log.warning(f"Skipping unknown classic game with name: {sanitized_name}")
             return games
 
-        try:
-            standard_games = _parse_standard_games(await self.backend_client.get_owned_games())
-            classic_games = _parse_classic_games(await self.backend_client.get_owned_classic_games())
-            owned_games: Dict[BlizzardGame, LicenseType] = {**standard_games, **classic_games}
+        cn = self.authentication_client.region == 'cn'
 
-            # add free games
-            for game in Blizzard.BATTLENET_GAMES:
-                # TODO restructure BATTLENET_GAMES to exclude china free to play games or hack here
-                # better restrucure definitions. Use backend_id in names as was originally
-                if game.free_to_play and game not in owned_games:
-                    owned_games[game] = LicenseType.FreeToPlay
+        battlenet_games = _parse_battlenet_games(await self.backend_client.get_owned_games(), cn)
+        classic_games = _parse_classic_games(await self.backend_client.get_owned_classic_games())
+        owned_games: Dict[BlizzardGame, LicenseType] = {**battlenet_games, **classic_games}
 
-            return [
-                Game(game.uid, game.name, None, LicenseInfo(license_type))
-                for game, license_type in owned_games.items()
-            ]
+        for game in Blizzard.try_for_free_games(cn):
+            if game not in owned_games:
+                owned_games[game] = LicenseType.FreeToPlay
 
-        except Exception as e:
-            log.exception(f"failed to get owned games: {repr(e)}")
-            raise
+        return [
+            Game(game.uid, game.name, None, LicenseInfo(license_type))
+            for game, license_type in owned_games.items()
+        ]
 
     async def get_local_games(self):
         timeout = time.time() + 2
