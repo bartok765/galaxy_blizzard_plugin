@@ -18,14 +18,14 @@ class WebsiteAuthData(object):
     region: str
 
 
-@dc.dataclass
+@dc.dataclass(frozen=True)
 class BlizzardGame:
     uid: str
     name: str
     family: str
 
 
-@dc.dataclass
+@dc.dataclass(frozen=True)
 class ClassicGame(BlizzardGame):
     registry_path: Optional[str] = None
     registry_installation_key: Optional[str] = None
@@ -65,7 +65,7 @@ class Singleton(type):
 
 
 class _Blizzard(object, metaclass=Singleton):
-    TITLE_IDS_MAP = {
+    TITLE_ID_MAP = {
         '21297': RegionalGameInfo('s1', True),
         '21298': RegionalGameInfo('s2', True),
         '5730135': RegionalGameInfo('wow', True),
@@ -78,11 +78,11 @@ class _Blizzard(object, metaclass=Singleton):
         '1447645266': RegionalGameInfo('viper', False),
         '1329875278': RegionalGameInfo('odin', False)
     }
-    TITLE_IDS_MAP_CN = {
-        **TITLE_IDS_MAP,
+    TITLE_ID_MAP_CN = {
+        **TITLE_ID_MAP,
         '17459': RegionalGameInfo('d3cn', False)
     }
-    BATTLENET_GAMES = {
+    BATTLENET_GAMES = [
         BlizzardGame('s1', 'StarCraft', 'S1'),
         BlizzardGame('s2', 'StarCraft II', 'S2'),
         BlizzardGame('wow', 'World of Warcraft', 'WoW'),
@@ -96,7 +96,7 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('diablo3', 'Diablo III', 'D3'),
         BlizzardGame('viper', 'Call of Duty: Black Ops 4', 'VIPR'),
         BlizzardGame('odin', 'Call of Duty: Modern Warfare', 'ODIN'),
-    }
+    ]
     CLASSIC_GAMES = [
         ClassicGame('d2', 'Diablo® II', 'Diablo II', 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
         ClassicGame('d2LOD', 'Diablo® II: Lord of Destruction®', 'Diablo II'),  # TODO exe and bundleid
@@ -110,16 +110,10 @@ class _Blizzard(object, metaclass=Singleton):
 
     def __getitem__(self, key: str) -> BlizzardGame:
         """
-        :param key: str can be uid (eg. "prometheus") or family (eg. "Pro")
+        :param key: str uid (eg. "prometheus")
         :returns: game by `key`
         """
-        try:
-            return self._games[key]
-        except KeyError as e:
-            for g in self._games.values():
-                if g.family == key:
-                    return g
-        raise e
+        return self._games[key]
 
     def game_by_title_id(self, title_id: str, cn: bool) -> BlizzardGame:
         """
@@ -127,17 +121,18 @@ class _Blizzard(object, metaclass=Singleton):
         :raises KeyError: when unknown title_id for given region
         """
         if cn:
-            return self._games[self.TITLE_IDS_MAP_CN[title_id]]
+            regional_info = self.TITLE_ID_MAP_CN[title_id]
         else:
-            return self._games[self.TITLE_IDS_MAP[title_id]]
+            regional_info = self.TITLE_ID_MAP[title_id]
+        return self[regional_info.uid]
 
     def try_for_free_games(self, cn: bool) -> List[BlizzardGame]:
         """
         :param cn: flag if china game definitions should be search though
         """
         return [
-            self._games[info.uid] for info
-            in (self.TITLE_IDS_MAP_CN if cn else self.TITLE_IDS_MAP).values()
+            self[info.uid] for info
+            in (self.TITLE_ID_MAP_CN if cn else self.TITLE_ID_MAP).values()
             if info.try_for_free
         ]
 
