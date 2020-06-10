@@ -76,7 +76,7 @@ class _Blizzard(object, metaclass=Singleton):
         1214607983: RegionalGameInfo('heroes', True),
         17459: RegionalGameInfo('diablo3', True),
         1447645266: RegionalGameInfo('viper', False),
-        1329875278: RegionalGameInfo('odin', False),
+        1329875278: RegionalGameInfo('odin', True),
         1279351378: RegionalGameInfo('lazarus', False)
     }
     TITLE_ID_MAP_CN = {
