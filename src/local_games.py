@@ -105,7 +105,7 @@ class LocalGames():
                         log.debug(f"Checking if {game} is in registry ")
                         installed_game = self._add_classic_game(game, key)
                         if installed_game:
-                            classic_games[game.id] = installed_game
+                            classic_games[game.uid] = installed_game
             except OSError as e:
                 log.exception(f"Exception while looking for installed classic games {e}")
         else:
@@ -113,7 +113,7 @@ class LocalGames():
             for game in Blizzard.CLASSIC_GAMES:
                 if game.bundle_id:
                     if game.bundle_id in proc.stdout:
-                        classic_games[game.id] = InstalledGame(
+                        classic_games[game.uid] = InstalledGame(
                                                     game,
                                                     '',
                                                     '1.0',
@@ -185,7 +185,7 @@ class LocalGames():
             for config_game in config_parser_games:
                 installed_game = _add_battlenet_game(config_game, db_game)
                 if installed_game:
-                    games[installed_game.info.id] = installed_game
+                    games[installed_game.info.uid] = installed_game
         self.installed_battlenet_games_lock.acquire()
         self.installed_battlenet_games = games
         self.installed_battlenet_games_lock.release()
