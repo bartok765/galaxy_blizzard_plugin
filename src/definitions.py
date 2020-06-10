@@ -70,13 +70,14 @@ class _Blizzard(object, metaclass=Singleton):
         21298: RegionalGameInfo('s2', True),
         5730135: RegionalGameInfo('wow', True),
         5272175: RegionalGameInfo('prometheus', False),
-        -1: RegionalGameInfo('w3', False),  # TODO ask for help in Readme
+        22323: RegionalGameInfo('w3', False),
         1146311730: RegionalGameInfo('destiny2', False),
         1465140039: RegionalGameInfo('hs_beta', True),
         1214607983: RegionalGameInfo('heroes', True),
         17459: RegionalGameInfo('diablo3', True),
         1447645266: RegionalGameInfo('viper', False),
-        1329875278: RegionalGameInfo('odin', False)
+        1329875278: RegionalGameInfo('odin', False),
+        1279351378: RegionalGameInfo('lazarus', False)
     }
     TITLE_ID_MAP_CN = {
         **TITLE_ID_MAP,
@@ -96,6 +97,7 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('diablo3', 'Diablo III', 'D3'),
         BlizzardGame('viper', 'Call of Duty: Black Ops 4', 'VIPR'),
         BlizzardGame('odin', 'Call of Duty: Modern Warfare', 'ODIN'),
+        BlizzardGame('lazarus', 'Call of Duty: MW2 Campaign Remastered', 'LAZR')
     ]
     CLASSIC_GAMES = [
         ClassicGame('d2', 'Diablo® II', 'Diablo II', 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
