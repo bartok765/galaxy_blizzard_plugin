@@ -269,7 +269,7 @@ class BNetPlugin(Plugin):
         def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BlizzardGame, LicenseType]:
             licenses = {
                 None: LicenseType.Unknown,
-                "Trial": LicenseType.SinglePurchase,
+                "Trial": LicenseType.OtherUserLicense,
                 "Good": LicenseType.SinglePurchase,
                 "Inactive": LicenseType.SinglePurchase,
                 "Banned": LicenseType.SinglePurchase,
