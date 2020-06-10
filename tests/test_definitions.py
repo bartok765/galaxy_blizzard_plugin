@@ -14,14 +14,14 @@ def test_blizzard_getitem_by_uid():
 
 def test_blizzard_game_by_title_id_no_item():
     with pytest.raises(KeyError):
-        Blizzard.game_by_title_id('-1', cn=False)
+        Blizzard.game_by_title_id(-100, cn=False)
 
 
 @pytest.mark.parametrize('cn, title_id, expected', [
-    (True, '17459', Blizzard['d3cn']),
-    (False, '17459', Blizzard['diablo3']),
-    (True, '21297', Blizzard['s1']),
-    (False, '21297', Blizzard['s1'])
+    (True, 17459, Blizzard['d3cn']),
+    (False, 17459, Blizzard['diablo3']),
+    (True, 21297, Blizzard['s1']),
+    (False, 21297, Blizzard['s1'])
 ])
 def test_blizzard_game_by_title_id_cn(cn, title_id, expected):
     """d3cn should overwrite diablo3 for cn region"""

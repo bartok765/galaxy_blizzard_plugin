@@ -25,7 +25,7 @@ from process import ProcessProvider
 from local_client_base import ClientNotInstalledError
 from local_client import LocalClient
 from backend import BackendClient, AccessTokenExpired
-from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGame, BattlenetGame
+from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGame
 from consts import SYSTEM
 from consts import Platform as pf
 from http_client import AuthenticatedHttpClient
@@ -270,7 +270,7 @@ class BNetPlugin(Plugin):
         if not self.authentication_client.is_authenticated():
             raise AuthenticationRequired()
 
-        def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BattlenetGame, LicenseType]:
+        def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BlizzardGame, LicenseType]:
             licenses = {
                 None: LicenseType.Unknown,
                 "Trial": LicenseType.SinglePurchase,
@@ -302,7 +302,7 @@ class BNetPlugin(Plugin):
                 sanitized_name = classic_game["localizedGameName"].replace(u'\xa0', ' ')
                 for cg in Blizzard.CLASSIC_GAMES:
                     if cg.name == sanitized_name:
-                        games[game] = LicenseType.SinglePurchase
+                        games[cg] = LicenseType.SinglePurchase
                         break
                 else:
                     log.warning(f"Skipping unknown classic game with name: {sanitized_name}")
@@ -360,19 +360,16 @@ class BNetPlugin(Plugin):
         total_time = None
         last_played_time = None
 
-        if game_id == "5272175":
+        blizzard_game = Blizzard[game_id]
+
+        if blizzard_game.name == "Overwatch":
             total_time = await self._get_overwatch_time()
             log.debug(f"Gametime for Overwatch is {total_time} minutes.")
 
-        for game in self.local_client.config_parser.games:
-            try:
-                blizzard_game = Blizzard[game.uid]
-            except KeyError:
-                continue
-
-            if (blizzard_game.id == game_id) and (game.last_played is not None):
-                last_played_time = int(game.last_played)
-                log.debug(f'last_played_time {game_id}: {last_played_time}')
+        for config_info in self.local_client.config_parser.games:
+            if config_info.uid == blizzard_game.uid:
+                if config_info.last_played is not None:
+                    last_played_time = int(config_info.last_played)
                 break
 
         return GameTime(game_id, total_time, last_played_time)
