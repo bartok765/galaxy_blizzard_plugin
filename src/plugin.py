@@ -44,7 +44,7 @@ class BNetPlugin(Plugin):
     async def _notify_about_game_stop(self, game, starting_timeout):
         if not self.local_games_called:
             return
-        id_to_watch = game.info.id
+        id_to_watch = game.info.uid
 
         if id_to_watch in self.watched_running_games:
             log.debug(f'Game {id_to_watch} is already watched. Skipping')
