@@ -334,14 +334,14 @@ class BNetPlugin(Plugin):
             installed_games = self.local_client.get_installed_games()
             log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
-            for id_, game in installed_games.items():
+            for uid, game in installed_games.items():
                 if game.playable:
                     state = LocalGameState.Installed
-                    if id_ in running_games:
+                    if uid in running_games:
                         state |= LocalGameState.Running
                 else:
                     state = LocalGameState.None_
-                translated_installed_games.append(LocalGame(id_, state))
+                translated_installed_games.append(LocalGame(uid, state))
             self.local_client.installed_games_cache = installed_games
             return translated_installed_games
 
