@@ -66,21 +66,21 @@ class Singleton(type):
 
 class _Blizzard(object, metaclass=Singleton):
     TITLE_ID_MAP = {
-        '21297': RegionalGameInfo('s1', True),
-        '21298': RegionalGameInfo('s2', True),
-        '5730135': RegionalGameInfo('wow', True),
-        '5272175': RegionalGameInfo('prometheus', False),
-        '?': RegionalGameInfo('w3', False),  # TODO ask for help in Readme
-        '1146311730': RegionalGameInfo('destiny2', False),
-        '1465140039': RegionalGameInfo('hs_beta', True),
-        '1214607983': RegionalGameInfo('heroes', True),
-        '17459': RegionalGameInfo('diablo3', True),
-        '1447645266': RegionalGameInfo('viper', False),
-        '1329875278': RegionalGameInfo('odin', False)
+        21297: RegionalGameInfo('s1', True),
+        21298: RegionalGameInfo('s2', True),
+        5730135: RegionalGameInfo('wow', True),
+        5272175: RegionalGameInfo('prometheus', False),
+        -1: RegionalGameInfo('w3', False),  # TODO ask for help in Readme
+        1146311730: RegionalGameInfo('destiny2', False),
+        1465140039: RegionalGameInfo('hs_beta', True),
+        1214607983: RegionalGameInfo('heroes', True),
+        17459: RegionalGameInfo('diablo3', True),
+        1447645266: RegionalGameInfo('viper', False),
+        1329875278: RegionalGameInfo('odin', False)
     }
     TITLE_ID_MAP_CN = {
         **TITLE_ID_MAP,
-        '17459': RegionalGameInfo('d3cn', False)
+        17459: RegionalGameInfo('d3cn', False)
     }
     BATTLENET_GAMES = [
         BlizzardGame('s1', 'StarCraft', 'S1'),
@@ -115,7 +115,7 @@ class _Blizzard(object, metaclass=Singleton):
         """
         return self._games[key]
 
-    def game_by_title_id(self, title_id: str, cn: bool) -> BlizzardGame:
+    def game_by_title_id(self, title_id: int, cn: bool) -> BlizzardGame:
         """
         :param cn: flag if china game definitions should be search though
         :raises KeyError: when unknown title_id for given region
