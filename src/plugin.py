@@ -158,7 +158,7 @@ class BNetPlugin(Plugin):
                 installed_game = self.local_client.get_installed_games().get(game_id, None)
 
                 if installed_game is None or not os.access(installed_game.install_path, os.F_OK):
-                    log.error(f'Cannot uninstall {Blizzard[game_id].uid}')
+                    log.error(f'Cannot uninstall {game_id}')
                     self.update_local_game_status(LocalGame(game_id, LocalGameState.None_))
                     return
 
