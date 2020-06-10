@@ -30,10 +30,6 @@ class InstalledGame(object):
         self.execs = pathfinder.find_executables(self.install_path)
         self._processes = set()
 
-    @property
-    def local_game_args(self):
-        return (self.info.blizzard_id, self.is_running)
-
     def add_process(self, process: Process):
         try:
             if process.exe() in self.execs:
@@ -59,6 +55,7 @@ class InstalledGame(object):
     def wait_until_game_stops(self):
         while self.is_running():
             time.sleep(0.5)
+
 
 class LocalGames():
     def __init__(self):
@@ -170,7 +167,7 @@ class LocalGames():
                 log.warning(f'[{config_game.uid}] is not known blizzard game. Skipping')
                 return None
             try:
-                log.info(f"Adding {blizzard_game.blizzard_id} {blizzard_game.name} to installed games")
+                log.info(f"Adding {blizzard_game.uid} {blizzard_game.name} to installed games")
                 return InstalledGame(
                     blizzard_game,
                     config_game.uninstall_tag,

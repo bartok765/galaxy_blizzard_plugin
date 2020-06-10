@@ -178,10 +178,6 @@ class BNetPlugin(Plugin):
             await self.get_local_games()
 
         try:
-            if self.local_client.get_installed_games() is None:
-                log.error(f'Launching game that is not installed: {game_id}')
-                return await self.install_game(game_id)
-
             game = self.local_client.get_installed_games().get(game_id, None)
             if game is None:
                 log.error(f'Launching game that is not installed: {game_id}')
