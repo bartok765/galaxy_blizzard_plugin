@@ -13,7 +13,6 @@ from tests.website_mocks import backend_owned_games, backend_no_classics, backen
 def result_owned_games():
     vals = [
         Blizzard['wow'],
-        Blizzard['destiny2'],
         Blizzard['odin'],
         Blizzard['s1'],
         Blizzard['s2'],
