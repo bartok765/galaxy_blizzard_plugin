@@ -30,10 +30,6 @@ class InstalledGame(object):
         self.execs = pathfinder.find_executables(self.install_path)
         self._processes = set()
 
-    @property
-    def local_game_args(self):
-        return (self.info.blizzard_id, self.is_running)
-
     def add_process(self, process: Process):
         try:
             if process.exe() in self.execs:
@@ -59,6 +55,7 @@ class InstalledGame(object):
     def wait_until_game_stops(self):
         while self.is_running():
             time.sleep(0.5)
+
 
 class LocalGames():
     def __init__(self):
@@ -104,19 +101,19 @@ class LocalGames():
             try:
                 reg = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
                 with winreg.OpenKey(reg, WINDOWS_UNINSTALL_LOCATION) as key:
-                    for game in Blizzard.legacy_games:
+                    for game in Blizzard.CLASSIC_GAMES:
                         log.debug(f"Checking if {game} is in registry ")
                         installed_game = self._add_classic_game(game, key)
                         if installed_game:
-                            classic_games[game.id] = installed_game
+                            classic_games[game.uid] = installed_game
             except OSError as e:
                 log.exception(f"Exception while looking for installed classic games {e}")
         else:
             proc = subprocess.run([LS_REGISTER,"-dump"], encoding='utf-8',stdout=subprocess.PIPE)
-            for game in Blizzard.legacy_games:
+            for game in Blizzard.CLASSIC_GAMES:
                 if game.bundle_id:
                     if game.bundle_id in proc.stdout:
-                        classic_games[game.id] = InstalledGame(
+                        classic_games[game.uid] = InstalledGame(
                                                     game,
                                                     '',
                                                     '1.0',
@@ -170,7 +167,7 @@ class LocalGames():
                 log.warning(f'[{config_game.uid}] is not known blizzard game. Skipping')
                 return None
             try:
-                log.info(f"Adding {blizzard_game.blizzard_id} {blizzard_game.name} to installed games")
+                log.info(f"Adding {blizzard_game.uid} {blizzard_game.name} to installed games")
                 return InstalledGame(
                     blizzard_game,
                     config_game.uninstall_tag,
@@ -188,7 +185,7 @@ class LocalGames():
             for config_game in config_parser_games:
                 installed_game = _add_battlenet_game(config_game, db_game)
                 if installed_game:
-                    games[installed_game.info.id] = installed_game
+                    games[installed_game.info.uid] = installed_game
         self.installed_battlenet_games_lock.acquire()
         self.installed_battlenet_games = games
         self.installed_battlenet_games_lock.release()

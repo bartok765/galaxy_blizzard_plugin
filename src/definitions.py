@@ -1,17 +1,8 @@
 ﻿import dataclasses as dc
 import json
 import requests
-from typing import Optional
-from galaxy.api.consts import LicenseType
+from typing import Optional, Dict, List
 
-License_Map = {
-    None: LicenseType.Unknown,
-    "Trial": LicenseType.SinglePurchase,
-    "Good": LicenseType.SinglePurchase,
-    "Inactive": LicenseType.SinglePurchase,
-    "Banned": LicenseType.SinglePurchase,
-    "Free": LicenseType.FreeToPlay
-}
 
 class DataclassJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -22,39 +13,31 @@ class DataclassJSONEncoder(json.JSONEncoder):
 
 @dc.dataclass
 class WebsiteAuthData(object):
-    cookie_jar: requests.cookies.RequestsCookieJar()
+    cookie_jar: requests.cookies.RequestsCookieJar
     access_token: str
     region: str
 
 
-
-@dc.dataclass
-class BlizzardGame(object):
-    uid: str
-    name: str
-    blizzard_id: str
-    family: str
-    free_to_play: bool
-
-    @property
-    def id(self):
-        return self.blizzard_id
-
-
-@dc.dataclass
-class ClassicGame(object):
+@dc.dataclass(frozen=True)
+class BlizzardGame:
     uid: str
     name: str
     family: str
-    free_to_play: bool
-    registry_path: str = None
-    registry_installation_key: str = None
-    exe: str = None
-    bundle_id: str = None
 
-    @property
-    def id(self):
-        return self.uid
+
+@dc.dataclass(frozen=True)
+class ClassicGame(BlizzardGame):
+    registry_path: Optional[str] = None
+    registry_installation_key: Optional[str] = None
+    exe: Optional[str] = None
+    bundle_id: Optional[str] = None
+
+
+@dc.dataclass
+class RegionalGameInfo:
+    uid: str
+    try_for_free: bool
+
 
 @dc.dataclass
 class ConfigGameInfo(object):
@@ -73,7 +56,7 @@ class ProductDbInfo(object):
 
 
 class Singleton(type):
-    _instances = {}
+    _instances = {}  # type: ignore
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -82,55 +65,77 @@ class Singleton(type):
 
 
 class _Blizzard(object, metaclass=Singleton):
-    _GAMES = [
-        BlizzardGame('s1', 'StarCraft', '21297', 'S1', True),
-        BlizzardGame('s2', 'StarCraft II', '21298', 'S2', True),
-        BlizzardGame('wow', 'World of Warcraft', '5730135', 'WoW', True),
-        BlizzardGame('wow_classic', 'World of Warcraft Classic', 'wow_classic', 'WoW_wow_classic', False),
-        BlizzardGame('prometheus', 'Overwatch', '5272175', 'Pro', False),
-        BlizzardGame('w3', 'Warcraft III', '?', 'W3', False),
-        BlizzardGame('destiny2', 'Destiny 2', '1146311730', 'DST2', False),
-        BlizzardGame('hs_beta', 'Hearthstone', '1465140039', 'WTCG', True),
-        BlizzardGame('heroes', 'Heroes of the Storm', '1214607983', 'Hero', True),
-        BlizzardGame('d3cn', '暗黑破壞神III', '?', 'D3CN', False),
-        BlizzardGame('diablo3', 'Diablo III', '17459', 'D3', True),
-        BlizzardGame('viper', 'Call of Duty: Black Ops 4', '1447645266', 'VIPR', False),
-        BlizzardGame('odin', 'Call of Duty: Modern Warfare', '1329875278', 'ODIN', False),
-        ClassicGame('d2', 'Diablo® II', 'Diablo II', False, 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
-        ClassicGame('d2LOD', 'Diablo® II: Lord of Destruction®', 'Diablo II', False),
-        ClassicGame('w3ROC', 'Warcraft® III: Reign of Chaos',  'Warcraft III', False, 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
-        ClassicGame('w3tft', 'Warcraft® III: The Frozen Throne®',  'Warcraft III', False, 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
-        ClassicGame('sca', 'StarCraft® Anthology',  'Starcraft', False, 'StarCraft')
+    TITLE_ID_MAP = {
+        21297: RegionalGameInfo('s1', True),
+        21298: RegionalGameInfo('s2', True),
+        5730135: RegionalGameInfo('wow', True),
+        5272175: RegionalGameInfo('prometheus', False),
+        22323: RegionalGameInfo('w3', False),
+        1146311730: RegionalGameInfo('destiny2', False),
+        1465140039: RegionalGameInfo('hs_beta', True),
+        1214607983: RegionalGameInfo('heroes', True),
+        17459: RegionalGameInfo('diablo3', True),
+        1447645266: RegionalGameInfo('viper', False),
+        1329875278: RegionalGameInfo('odin', True),
+        1279351378: RegionalGameInfo('lazarus', False)
+    }
+    TITLE_ID_MAP_CN = {
+        **TITLE_ID_MAP,
+        17459: RegionalGameInfo('d3cn', False)
+    }
+    BATTLENET_GAMES = [
+        BlizzardGame('s1', 'StarCraft', 'S1'),
+        BlizzardGame('s2', 'StarCraft II', 'S2'),
+        BlizzardGame('wow', 'World of Warcraft', 'WoW'),
+        BlizzardGame('wow_classic', 'World of Warcraft Classic', 'WoW_wow_classic'),
+        BlizzardGame('prometheus', 'Overwatch', 'Pro'),
+        BlizzardGame('w3', 'Warcraft III', 'W3'),
+        BlizzardGame('hs_beta', 'Hearthstone', 'WTCG'),
+        BlizzardGame('heroes', 'Heroes of the Storm', 'Hero'),
+        BlizzardGame('d3cn', '暗黑破壞神III', 'D3CN'),
+        BlizzardGame('diablo3', 'Diablo III', 'D3'),
+        BlizzardGame('viper', 'Call of Duty: Black Ops 4', 'VIPR'),
+        BlizzardGame('odin', 'Call of Duty: Modern Warfare', 'ODIN'),
+        BlizzardGame('lazarus', 'Call of Duty: MW2 Campaign Remastered', 'LAZR')
+    ]
+    CLASSIC_GAMES = [
+        ClassicGame('d2', 'Diablo® II', 'Diablo II', 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
+        ClassicGame('d2LOD', 'Diablo® II: Lord of Destruction®', 'Diablo II'),  # TODO exe and bundleid
+        ClassicGame('w3ROC', 'Warcraft® III: Reign of Chaos',  'Warcraft III', 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
+        ClassicGame('w3tft', 'Warcraft® III: The Frozen Throne®',  'Warcraft III', 'Warcraft III', 'InstallLocation', 'Warcraft III.exe', 'com.blizzard.WarcraftIII'),
+        ClassicGame('sca', 'StarCraft® Anthology', 'Starcraft', 'StarCraft')  # TODO exe and bundleid
     ]
 
     def __init__(self):
-        self.__games = {}
-        for game in self._GAMES:
-            self.__games[game.id] = game
+        self._games = {game.uid: game for game in self.BATTLENET_GAMES + self.CLASSIC_GAMES}
 
-    def __getitem__(self, key):
-        for game in self._GAMES:
-            if key in [game.id, game.uid, game.name]:
-                return game
-        raise KeyError()
+    def __getitem__(self, key: str) -> BlizzardGame:
+        """
+        :param key: str uid (eg. "prometheus")
+        :returns: game by `key`
+        """
+        return self._games[key]
 
-    @property
-    def games(self):
-        return self.__games
+    def game_by_title_id(self, title_id: int, cn: bool) -> BlizzardGame:
+        """
+        :param cn: flag if china game definitions should be search though
+        :raises KeyError: when unknown title_id for given region
+        """
+        if cn:
+            regional_info = self.TITLE_ID_MAP_CN[title_id]
+        else:
+            regional_info = self.TITLE_ID_MAP[title_id]
+        return self[regional_info.uid]
 
-    @property
-    def free_games(self):
-        return [game for game in self._GAMES if game.free_to_play]
-
-    @property
-    def legacy_game_ids(self):
-        return [game.uid for game in self._GAMES if isinstance(game, ClassicGame)]
-
-    @property
-    def legacy_games(self):
-        return [game for game in self._GAMES if isinstance(game, ClassicGame)]
+    def try_for_free_games(self, cn: bool) -> List[BlizzardGame]:
+        """
+        :param cn: flag if china game definitions should be search though
+        """
+        return [
+            self[info.uid] for info
+            in (self.TITLE_ID_MAP_CN if cn else self.TITLE_ID_MAP).values()
+            if info.try_for_free
+        ]
 
 
 Blizzard = _Blizzard()
-
-

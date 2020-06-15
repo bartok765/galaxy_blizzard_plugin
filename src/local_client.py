@@ -4,11 +4,13 @@ import asyncio
 import logging as log
 import subprocess
 from time import time
+import pathlib
 
 import psutil
 
 from definitions import ClassicGame
 from consts import Platform, SYSTEM, AGENT_PATH
+from local_client_base import BaseLocalClient
 
 if SYSTEM == Platform.WINDOWS:
     import winreg
@@ -17,8 +19,6 @@ elif SYSTEM == Platform.MACOS:
     from Quartz import CGWindowListCopyWindowInfo, kCGNullWindowID, kCGWindowListExcludeDesktopElements
     from AppKit import NSWorkspace
 
-from local_client_base import BaseLocalClient
-import pathlib
 
 class WinUninstaller(object):
     def __init__(self, path):
@@ -137,11 +137,12 @@ class WinLocalClient(BaseLocalClient):
 
 
 class MacLocalClient(BaseLocalClient):
+    _PATH = "/Applications/Battle.net.app/Contents/MacOS/Battle.net"
+
     def __init__(self, update_statuses):
         super().__init__(update_statuses)
         self.uninstaller = None
         self._exe = self._find_exe()
-    _PATH = "/Applications/Battle.net.app/Contents/MacOS/Battle.net"
 
     def _find_exe(self):
         return self._PATH
