@@ -90,7 +90,6 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('wow_classic', 'World of Warcraft Classic', 'WoW_wow_classic'),
         BlizzardGame('prometheus', 'Overwatch', 'Pro'),
         BlizzardGame('w3', 'Warcraft III', 'W3'),
-        BlizzardGame('destiny2', 'Destiny 2', 'DST2'),
         BlizzardGame('hs_beta', 'Hearthstone', 'WTCG'),
         BlizzardGame('heroes', 'Heroes of the Storm', 'Hero'),
         BlizzardGame('d3cn', '暗黑破壞神III', 'D3CN'),
