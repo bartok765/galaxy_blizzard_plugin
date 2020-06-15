@@ -35,7 +35,7 @@ class BackendClient(object):
                 self._plugin.lost_authentication()
                 raise
             except Exception as e:
-                logging.log(repr(e))
+                logging.error(repr(e))
                 raise
             return await self.do_request(method, url, data, json, headers, ignore_failure)
 
@@ -152,7 +152,7 @@ class BackendClient(object):
         url = f"{self._authentication_client.blizzard_api_url}/wow/user/characters"
         return await self._authenticated_request("GET", url)
 
-    async def get_wow_character_achievements(self,  realm, character_name):
+    async def get_wow_character_achievements(self, realm, character_name):
         url = f"{self._authentication_client.blizzard_api_url}/wow/character/{realm.lower()}/{character_name}?fields=achievements"
         return await self.do_request("GET", url)
 

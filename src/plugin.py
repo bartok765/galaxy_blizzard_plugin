@@ -10,11 +10,11 @@ import logging as log
 import subprocess
 import time
 import re
-from typing import Union
+from typing import Union, List, Dict
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime, LicenseType
 from galaxy.api.errors import (
     AuthenticationRequired, BackendTimeout, BackendNotAvailable, BackendError,
     NetworkError, UnknownError, InvalidCredentials, UnknownBackendResponse
@@ -25,7 +25,7 @@ from process import ProcessProvider
 from local_client_base import ClientNotInstalledError
 from local_client import LocalClient
 from backend import BackendClient, AccessTokenExpired
-from definitions import Blizzard, DataclassJSONEncoder, License_Map, ClassicGame
+from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGame
 from consts import SYSTEM
 from consts import Platform as pf
 from http_client import AuthenticatedHttpClient
@@ -38,14 +38,13 @@ class BNetPlugin(Plugin):
         self.authentication_client = AuthenticatedHttpClient(self)
         self.backend_client = BackendClient(self, self.authentication_client)
 
-        self.owned_games_cache = []
         self.watched_running_games = set()
         self.local_games_called = False
 
     async def _notify_about_game_stop(self, game, starting_timeout):
         if not self.local_games_called:
             return
-        id_to_watch = game.info.id
+        id_to_watch = game.info.uid
 
         if id_to_watch in self.watched_running_games:
             log.debug(f'Game {id_to_watch} is already watched. Skipping')
@@ -99,7 +98,6 @@ class BNetPlugin(Plugin):
         if self.backend_client:
             asyncio.create_task(self.authentication_client.shutdown())
         self.authentication_client.user_details = None
-        self.owned_games_cache = []
 
     async def open_battlenet_browser(self):
         url = self.authentication_client.blizzard_battlenet_download_url
@@ -116,7 +114,7 @@ class BNetPlugin(Plugin):
             log.warning("Received install command on an already installed game")
             return await self.launch_game(game_id)
 
-        if game_id in Blizzard.legacy_game_ids:
+        if game_id in [classic.uid for classic in Blizzard.CLASSIC_GAMES]:
             if SYSTEM == pf.WINDOWS:
                 platform = 'windows'
             elif SYSTEM == pf.MACOS:
@@ -160,7 +158,7 @@ class BNetPlugin(Plugin):
                 installed_game = self.local_client.get_installed_games().get(game_id, None)
 
                 if installed_game is None or not os.access(installed_game.install_path, os.F_OK):
-                    log.error(f'Cannot uninstall {Blizzard[game_id].uid}')
+                    log.error(f'Cannot uninstall {game_id}')
                     self.update_local_game_status(LocalGame(game_id, LocalGameState.None_))
                     return
 
@@ -180,10 +178,6 @@ class BNetPlugin(Plugin):
             await self.get_local_games()
 
         try:
-            if self.local_client.get_installed_games() is None:
-                log.error(f'Launching game that is not installed: {game_id}')
-                return await self.install_game(game_id)
-
             game = self.local_client.get_installed_games().get(game_id, None)
             if game is None:
                 log.error(f'Launching game that is not installed: {game_id}')
@@ -272,58 +266,58 @@ class BNetPlugin(Plugin):
         if not self.authentication_client.is_authenticated():
             raise AuthenticationRequired()
 
-        def _parse_classic_games(classic_games):
-            for classic_game in classic_games["classicGames"]:
-                log.info(f"looking for {classic_game} in classic games")
+        def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BlizzardGame, LicenseType]:
+            licenses = {
+                None: LicenseType.Unknown,
+                "Trial": LicenseType.OtherUserLicense,
+                "Good": LicenseType.SinglePurchase,
+                "Inactive": LicenseType.SinglePurchase,
+                "Banned": LicenseType.SinglePurchase,
+                "Free": LicenseType.FreeToPlay
+            }
+            games = {}
+
+            for standard_game in standard_games["gameAccounts"]:
+                title_id = standard_game['titleId']
                 try:
-                    blizzard_game = Blizzard[classic_game["localizedGameName"].replace(u'\xa0', ' ')]
-                    log.info(f"match! {blizzard_game}")
-                    classic_game["titleId"] = blizzard_game.uid
-                    classic_game["gameAccountStatus"] = "Good"
+                    game = Blizzard.game_by_title_id(title_id, cn)
                 except KeyError:
-                    continue
-
-            return classic_games
-
-        def _get_not_added_free_games(owned_games):
-            owned_games_ids = []
-            for game in owned_games:
-                if "titleId" in game:
-                    owned_games_ids.append(str(game["titleId"]))
-
-            return [{"titleId": game.blizzard_id,
-                    "localizedGameName": game.name,
-                    "gameAccountStatus": "Free"}
-                    for game in Blizzard.free_games if game.blizzard_id not in owned_games_ids]
-
-        try:
-            games = await self.backend_client.get_owned_games()
-            classic_games = _parse_classic_games(await self.backend_client.get_owned_classic_games())
-            owned_games = games["gameAccounts"] + classic_games["classicGames"]
+                    log.warning(f"Skipping unknown game with titleId: {title_id}")
+                else:
+                    games[game] = licenses[standard_game.get("gameAccountStatus")]
 
             # Add wow classic if retail wow is present in owned games
-            for owned_game in owned_games.copy():
-                if 'titleId' in owned_game:
-                    if owned_game['titleId'] == 5730135:
-                        owned_games.append({'titleId': 'wow_classic',
-                                            'localizedGameName': 'World of Warcraft Classic',
-                                            'gameAccountStatus': owned_game['gameAccountStatus']})
+            wow_license = games.get(Blizzard['wow'])
+            if wow_license is not None:
+                games[Blizzard['wow_classic']] = wow_license
+            return games
 
-            free_games_to_add = _get_not_added_free_games(owned_games)
-            owned_games += free_games_to_add
-            self.owned_games_cache = owned_games
-            return [
-                Game(
-                    str(game["titleId"]),
-                    game["localizedGameName"],
-                    [],
-                    LicenseInfo(License_Map[game["gameAccountStatus"]]),
-                )
-                for game in self.owned_games_cache if "titleId" in game
-            ]
-        except Exception as e:
-            log.exception(f"failed to get owned games: {repr(e)}")
-            raise
+        def _parse_classic_games(classic_games: dict) -> Dict[ClassicGame, LicenseType]:
+            games = {}
+            for classic_game in classic_games["classicGames"]:
+                sanitized_name = classic_game["localizedGameName"].replace(u'\xa0', ' ')
+                for cg in Blizzard.CLASSIC_GAMES:
+                    if cg.name == sanitized_name:
+                        games[cg] = LicenseType.SinglePurchase
+                        break
+                else:
+                    log.warning(f"Skipping unknown classic game with name: {sanitized_name}")
+            return games
+
+        cn = self.authentication_client.region == 'cn'
+
+        battlenet_games = _parse_battlenet_games(await self.backend_client.get_owned_games(), cn)
+        classic_games = _parse_classic_games(await self.backend_client.get_owned_classic_games())
+        owned_games: Dict[BlizzardGame, LicenseType] = {**battlenet_games, **classic_games}
+
+        for game in Blizzard.try_for_free_games(cn):
+            if game not in owned_games:
+                owned_games[game] = LicenseType.FreeToPlay
+
+        return [
+            Game(game.uid, game.name, None, LicenseInfo(license_type))
+            for game, license_type in owned_games.items()
+        ]
 
     async def get_local_games(self):
         timeout = time.time() + 2
@@ -340,14 +334,14 @@ class BNetPlugin(Plugin):
             installed_games = self.local_client.get_installed_games()
             log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
-            for id_, game in installed_games.items():
+            for uid, game in installed_games.items():
                 if game.playable:
                     state = LocalGameState.Installed
-                    if id_ in running_games:
+                    if uid in running_games:
                         state |= LocalGameState.Running
                 else:
                     state = LocalGameState.None_
-                translated_installed_games.append(LocalGame(id_, state))
+                translated_installed_games.append(LocalGame(uid, state))
             self.local_client.installed_games_cache = installed_games
             return translated_installed_games
 
@@ -362,19 +356,16 @@ class BNetPlugin(Plugin):
         total_time = None
         last_played_time = None
 
-        if game_id == "5272175":
+        blizzard_game = Blizzard[game_id]
+
+        if blizzard_game.name == "Overwatch":
             total_time = await self._get_overwatch_time()
             log.debug(f"Gametime for Overwatch is {total_time} minutes.")
 
-        for game in self.local_client.config_parser.games:
-            try:
-                blizzard_game = Blizzard[game.uid]
-            except KeyError:
-                continue
-
-            if (blizzard_game.id == game_id) and (game.last_played is not None):
-                last_played_time = int(game.last_played)
-                log.debug(f'last_played_time {game_id}: {last_played_time}')
+        for config_info in self.local_client.config_parser.games:
+            if config_info.uid == blizzard_game.uid:
+                if config_info.last_played is not None:
+                    last_played_time = int(config_info.last_played)
                 break
 
         return GameTime(game_id, total_time, last_played_time)

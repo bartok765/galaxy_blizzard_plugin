@@ -13,7 +13,7 @@ from src.parsers import ConfigParser
 # pytest-asyncio: all test coroutines will be treated as marked.
 pytestmark = pytest.mark.asyncio
 
-OW_ID = '5272175'
+OW_ID = 'prometheus'
 NO_GAME_TIME = GameTime(OW_ID, None, None)
 
 
@@ -76,18 +76,18 @@ async def test_last_played_when_unknown_game_in_config(pg, config_parser):
         ConfigGameInfo(game.uid, 'diablo3_enus', '1441712029')
     ]
 
-    ctx = await pg.prepare_game_times_context([game.blizzard_id])
-    result = await pg.get_game_time(game.blizzard_id, ctx)
-    assert result.game_id == game.blizzard_id
+    ctx = await pg.prepare_game_times_context([game.uid])
+    result = await pg.get_game_time(game.uid, ctx)
+    assert result.game_id == game.uid
     assert result.last_played_time == 1441712029
 
 async def test_last_played_time(pg, config_data):
     pg.local_client.config_parser = ConfigParser(config_data)
 
-    ctx = await pg.prepare_game_times_context(["21298", "1214607983"])
+    ctx = await pg.prepare_game_times_context(["s2", "heroes"])
 
-    result = await pg.get_game_time("21298", ctx)
-    assert result == GameTime("21298", None, None)
+    result = await pg.get_game_time("s2", ctx)
+    assert result == GameTime("s2", None, None)
 
-    result = await pg.get_game_time("1214607983", ctx)
-    assert result == GameTime("1214607983", None, 1441712029)
+    result = await pg.get_game_time("heroes", ctx)
+    assert result == GameTime("heroes", None, 1441712029)

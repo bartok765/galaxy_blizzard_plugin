@@ -27,10 +27,10 @@ class ProcessProvider(object):
             for game in games:
                 if proc.info['exe'] in game.execs:
                     game.add_process(proc)
-                    running_games.add(game.info.id)
+                    running_games.add(game.info.uid)
                 if isinstance(game.info, ClassicGame):
                     if game.info.exe in proc.info['name']:
                         game.add_process(proc)
-                        running_games.add(game.info.id)
+                        running_games.add(game.info.uid)
 
         return running_games

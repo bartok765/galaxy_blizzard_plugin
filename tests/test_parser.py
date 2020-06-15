@@ -1,5 +1,4 @@
 import pytest
-from definitions import Blizzard, BlizzardGame
 from parsers import DatabaseParser, ProductDbInfo, ConfigParser, ConfigGameInfo
 
 
@@ -43,19 +42,8 @@ def test_db_parser2(another_database):
     parser = DatabaseParser(another_database)
     assert parser.products.get('s1') == ProductDbInfo('s1', 's1', 'D:/bnet/StarCraft', '1.22.3.5354', True)
 
+
 def test_db_parser3_games_under_installation(db_under_installation):
     prs = DatabaseParser(db_under_installation)
     assert prs.products.get('s1') == ProductDbInfo('s1', 's1', 'C:/Program Files (x86)/StarCraft', '', False)
     assert prs.products.get('hero') == ProductDbInfo('heroes', 'hero', 'C:/Program Files (x86)/Heroes of the Storm', '2.43.3.72649', True)
-
-def test_blizzard_object():
-    try:
-        x = Blizzard['-1']
-        pytest.fail(f"Should raise exception - no blizzard game with ID -1, {x}")
-    except:
-        pass
-
-    game = BlizzardGame('destiny2', 'Destiny 2', '1146311730', 'DST2', False)
-    assert Blizzard['destiny2'] == game
-    assert Blizzard['Destiny 2'] == game
-    assert Blizzard['1146311730'] == game

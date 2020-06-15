@@ -13,6 +13,7 @@ from galaxy.api.types import Authentication, NextStep
 from consts import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, FIREFOX_AGENT
 from region_helper import _found_region, guess_region
 
+
 class AuthenticatedHttpClient(object):
     def __init__(self, plugin):
         self._plugin = plugin
@@ -180,6 +181,7 @@ class AuthenticatedHttpClient(object):
             return "https://www.battlenet.com.cn/oauth"
         else:
             return f"https://{self.region}.battle.net/oauth"
+
     @property
     def blizzard_api_url(self):
         if self.region == 'cn':

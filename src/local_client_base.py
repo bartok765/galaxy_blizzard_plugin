@@ -5,7 +5,7 @@ import subprocess
 import abc
 from time import time
 from pathlib import Path
-
+from typing import Dict
 
 from definitions import Blizzard
 from process import ProcessProvider
@@ -102,26 +102,23 @@ class BaseLocalClient(abc.ABC):
             await asyncio.sleep(0.2)
         raise TimeoutError(f'Timeout reached when waiting for gameview from Battle.net')
 
-    def install_game(self, id):
+    def install_game(self, uid: str):
         if not self.is_installed:
             raise ClientNotInstalledError()
-        game = Blizzard[id]
         args = [
             self._exe,
             "--install",
-            f"--game={game.uid}"
+            f"--game={uid}"
         ]
         subprocess.Popen(args, cwd=os.path.dirname(self._exe))
 
-    def open_battlenet(self, id=None):
+    def open_battlenet(self, uid: str=None):
         if not self.is_installed or not self._exe:
             raise ClientNotInstalledError()
-        if id:
-            game = Blizzard[id]
-            args = {self._exe,
-                    f"--game={game.uid}"}
+        if uid is not None:
+            args = (self._exe, f"--game={uid}")
         else:
-            args = {self._exe}
+            args = (self._exe)
         subprocess.Popen(args, cwd=os.path.dirname(self._exe))
 
     async def wait_until_game_stops(self, game: InstalledGame):
@@ -246,7 +243,7 @@ class BaseLocalClient(abc.ABC):
     def games_finished_parsing(self):
         return self._games_provider.parsed_classics and self._games_provider.parsed_battlenet
 
-    def get_installed_games(self, timeout=1):
+    def get_installed_games(self, timeout=1) -> Dict[str, InstalledGame]:
         games = {}
 
         if self._games_provider.installed_battlenet_games_lock.acquire(True, timeout):

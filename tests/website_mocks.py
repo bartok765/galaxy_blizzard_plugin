@@ -238,6 +238,25 @@ def backend_owned_games():
 
 
 @pytest.fixture
+def backend_no_classics():
+    return json.loads("""{ "classicGames": [] } """)
+
+
+@pytest.fixture
+def backend_classic_games():
+    return json.loads("""
+{"classicGames": [
+    {
+        "localizedGameName":"Diablo® II",
+        "regionalGameFranchiseIconFilename":"diablo-ii.svg",
+        "cdKeys":["XXXXXXXXXXXXXXXXXXXXXXXXXX"],
+        "displayOrder":9003
+    }
+]}
+""")
+
+
+@pytest.fixture
 async def sc2_player_data(self):
     return json.loads(
         """[{"name": "MOCK", "profileUrl": "https://www.starcraft2.com/profile/2/1/123", "avatarUrl": "https://static.starcraft2.com/starport/eadc1041-1c53-4c27-bf45-303ac5c6e33f/portraits/13-4.jpg", "profileId": "420", "regionId": 2, "realmId": 1}]"""
