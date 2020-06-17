@@ -41,7 +41,6 @@ class BackendClient(object):
 
     @staticmethod
     def handle_status_code(status_code):
-        logging.debug(f'Status code: {status_code}')
         if status_code == HTTPStatus.UNAUTHORIZED:
             raise AuthenticationRequired()
         if status_code == HTTPStatus.FORBIDDEN:
@@ -75,6 +74,7 @@ class BackendClient(object):
                 raise NetworkError
 
             if not ignore_failure:
+                logging.debug(f'Request to {url} responsed with status code {response.status_code}')
                 self.handle_status_code(response.status_code)
 
             if json:

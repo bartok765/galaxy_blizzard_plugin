@@ -9,12 +9,13 @@ import requests.cookies
 import logging as log
 import subprocess
 import time
+import random
 import re
-from typing import Union, List, Dict
+from typing import Any, Union, List, Dict
 
-from galaxy.api.consts import LocalGameState, Platform
+from galaxy.api.consts import LocalGameState, Platform, PresenceState
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime, LicenseType
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, UserInfo, UserPresence, GameTime, LicenseType
 from galaxy.api.errors import (
     AuthenticationRequired, BackendTimeout, BackendNotAvailable, BackendError,
     NetworkError, UnknownError, InvalidCredentials, UnknownBackendResponse
@@ -29,6 +30,7 @@ from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGam
 from consts import SYSTEM
 from consts import Platform as pf
 from http_client import AuthenticatedHttpClient
+from social import SocialFeatures
 
 
 class BNetPlugin(Plugin):
@@ -37,6 +39,7 @@ class BNetPlugin(Plugin):
         self.local_client = LocalClient(self._update_statuses)
         self.authentication_client = AuthenticatedHttpClient(self)
         self.backend_client = BackendClient(self, self.authentication_client)
+        self.social_features = SocialFeatures(self.authentication_client)
 
         self.watched_running_games = set()
         self.local_games_called = False
@@ -262,6 +265,54 @@ class BNetPlugin(Plugin):
 
         return self.authentication_client.parse_battletag()
 
+    async def get_friends(self):
+        if not self.authentication_client.is_authenticated():
+            raise AuthenticationRequired()
+        friends_list = await self.social_features.get_friends()
+        # @todo find another way to get friends name, as friend.battle_tag is always empty
+        return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url='', profile_url='') for friend_id, friend in friends_list.items()]
+
+    # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
+    #     return None
+
+    async def get_user_presence(self, user_id: str, context: Any) -> UserPresence:
+        log.debug(f"getting presence for user {user_id}")
+        friend_presence = await self.social_features.get_friend_presence(user_id)
+        # user_info = context.get(user_id)
+        # if user_info is None:
+        #     raise UnknownError(
+        #         "User {} not in friend list (plugin only supports fetching presence for friends)".format(user_id)
+        #     )
+
+        if friend_presence is None or "game_account_is_online" not in friend_presence:
+            return UserPresence(presence_state=PresenceState.Offline)
+
+        game_id = None
+        game_title = None
+        # if "rich_presence" in friend_presence:
+        #     game_id = None  # friend_presence["rich_presence"].program_id  # this is not the game_id
+        #     game_title = None
+
+        state = PresenceState.Online
+        # if user_info.state == EPersonaState.Online:
+        #     state = PresenceState.Online
+        # elif user_info.state == EPersonaState.Offline:
+        #     state = PresenceState.Offline
+        # elif user_info.state == EPersonaState.Away:
+        #     state = PresenceState.Away
+        # elif user_info.state == EPersonaState.Busy:
+        #     state = PresenceState.Away
+        # else:
+        #     state = PresenceState.Unknown
+
+        return UserPresence(
+            presence_state=state,
+            game_id=game_id,  # e.g. "5272175" for Overwatch
+            game_title=game_title,
+            in_game_status=None,
+            full_status=None
+        )
+
     async def get_owned_games(self):
         if not self.authentication_client.is_authenticated():
             raise AuthenticationRequired()
@@ -392,69 +443,69 @@ class BNetPlugin(Plugin):
                 return int(match.group('h')) * 60 + int(match.group('m'))
         raise UnknownBackendResponse(f'Unknown Overwatch API playtime format: {qp_time}')
 
-    async def _get_wow_achievements(self):
-        achievements = []
-        try:
-            characters_data = await self.backend_client.get_wow_character_data()
-            characters_data = characters_data["characters"]
+    # async def _get_wow_achievements(self):
+    #     achievements = []
+    #     try:
+    #         characters_data = await self.backend_client.get_wow_character_data()
+    #         characters_data = characters_data["characters"]
+    #
+    #         wow_character_data = await asyncio.gather(
+    #             *[
+    #                 self.backend_client.get_wow_character_achievements(character["realm"], character["name"])
+    #                 for character in characters_data
+    #             ],
+    #             return_exceptions=True,
+    #         )
+    #
+    #         for data in wow_character_data:
+    #             if isinstance(data, requests.Timeout) or isinstance(data, requests.ConnectionError):
+    #                 raise data
+    #
+    #         wow_achievement_data = [
+    #             list(
+    #                 zip(
+    #                     data["achievements"]["achievementsCompleted"],
+    #                     data["achievements"]["achievementsCompletedTimestamp"],
+    #                 )
+    #             )
+    #             for data in wow_character_data
+    #             if type(data) is dict
+    #         ]
+    #
+    #         already_in = set()
+    #
+    #         for char_ach in wow_achievement_data:
+    #             for ach in char_ach:
+    #                 if ach[0] not in already_in:
+    #                     achievements.append(Achievement(achievement_id=ach[0], unlock_time=int(ach[1] / 1000)))
+    #                     already_in.add(ach[0])
+    #     except (AccessTokenExpired, BackendError) as e:
+    #         log.exception(str(e))
+    #     with open('wow.json', 'w') as f:
+    #         f.write(json.dumps(achievements, cls=DataclassJSONEncoder))
+    #     return achievements
 
-            wow_character_data = await asyncio.gather(
-                *[
-                    self.backend_client.get_wow_character_achievements(character["realm"], character["name"])
-                    for character in characters_data
-                ],
-                return_exceptions=True,
-            )
-
-            for data in wow_character_data:
-                if isinstance(data, requests.Timeout) or isinstance(data, requests.ConnectionError):
-                    raise data
-
-            wow_achievement_data = [
-                list(
-                    zip(
-                        data["achievements"]["achievementsCompleted"],
-                        data["achievements"]["achievementsCompletedTimestamp"],
-                    )
-                )
-                for data in wow_character_data
-                if type(data) is dict
-            ]
-
-            already_in = set()
-
-            for char_ach in wow_achievement_data:
-                for ach in char_ach:
-                    if ach[0] not in already_in:
-                        achievements.append(Achievement(achievement_id=ach[0], unlock_time=int(ach[1] / 1000)))
-                        already_in.add(ach[0])
-        except (AccessTokenExpired, BackendError) as e:
-            log.exception(str(e))
-        with open('wow.json', 'w') as f:
-            f.write(json.dumps(achievements, cls=DataclassJSONEncoder))
-        return achievements
-
-    async def _get_sc2_achievements(self):
-        account_data = await self.backend_client.get_sc2_player_data(self.authentication_client.user_details["id"])
-
-        # TODO what if more sc2 accounts?
-        assert len(account_data) == 1
-        account_data = account_data[0]
-
-        profile_data = await self.backend_client.get_sc2_profile_data(
-                                                         account_data["regionId"], account_data["realmId"],
-                                                         account_data["profileId"]
-                                                         )
-
-        sc2_achievement_data = [
-            Achievement(achievement_id=achievement["achievementId"], unlock_time=achievement["completionDate"])
-            for achievement in profile_data["earnedAchievements"]
-            if achievement["isComplete"]
-        ]
-
-        with open('sc2.json', 'w') as f:
-            f.write(json.dumps(sc2_achievement_data, cls=DataclassJSONEncoder))
-        return sc2_achievement_data
+    # async def _get_sc2_achievements(self):
+    #     account_data = await self.backend_client.get_sc2_player_data(self.authentication_client.user_details["id"])
+    #
+    #     # TODO what if more sc2 accounts?
+    #     assert len(account_data) == 1
+    #     account_data = account_data[0]
+    #
+    #     profile_data = await self.backend_client.get_sc2_profile_data(
+    #                                                      account_data["regionId"], account_data["realmId"],
+    #                                                      account_data["profileId"]
+    #                                                      )
+    #
+    #     sc2_achievement_data = [
+    #         Achievement(achievement_id=achievement["achievementId"], unlock_time=achievement["completionDate"])
+    #         for achievement in profile_data["earnedAchievements"]
+    #         if achievement["isComplete"]
+    #     ]
+    #
+    #     with open('sc2.json', 'w') as f:
+    #         f.write(json.dumps(sc2_achievement_data, cls=DataclassJSONEncoder))
+    #     return sc2_achievement_data
 
     # async def get_unlocked_achievements(self, game_id):
     #     if not self.website_client.is_authenticated():
