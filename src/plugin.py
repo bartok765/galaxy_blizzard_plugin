@@ -30,6 +30,7 @@ from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGam
 from consts import SYSTEM
 from consts import Platform as pf
 from http_client import AuthenticatedHttpClient
+from bnet_client import BNetClient
 from social import SocialFeatures
 
 
@@ -39,7 +40,8 @@ class BNetPlugin(Plugin):
         self.local_client = LocalClient(self._update_statuses)
         self.authentication_client = AuthenticatedHttpClient(self)
         self.backend_client = BackendClient(self, self.authentication_client)
-        self.social_features = SocialFeatures(self.authentication_client)
+        self.bnet_client = BNetClient(self.authentication_client)
+        self.social_features = SocialFeatures(self.bnet_client)
 
         self.watched_running_games = set()
         self.local_games_called = False
@@ -219,7 +221,9 @@ class BNetPlugin(Plugin):
         try:
             if stored_credentials:
                 auth_data = self.authentication_client.process_stored_credentials(stored_credentials)
+
                 try:
+                    await self.bnet_client.connect()
                     await self.authentication_client.create_session()
                     await self.backend_client.refresh_cookies()
                     auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
@@ -227,6 +231,7 @@ class BNetPlugin(Plugin):
                     raise e
                 except Exception:
                     raise InvalidCredentials()
+
                 if self.authentication_client.validate_auth_status(auth_status):
                     self.authentication_client.user_details = await self.backend_client.get_user_info()
                 return self.authentication_client.parse_user_details()
@@ -248,14 +253,15 @@ class BNetPlugin(Plugin):
         auth_data = await self.authentication_client.get_auth_data_login(cookie_jar, credentials)
 
         try:
+            await self.bnet_client.connect()
             await self.authentication_client.create_session()
             await self.backend_client.refresh_cookies()
+            auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
         except (BackendNotAvailable, BackendError, NetworkError, UnknownError, BackendTimeout) as e:
             raise e
         except Exception:
             raise InvalidCredentials()
 
-        auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
         if not ("authorities" in auth_status and "IS_AUTHENTICATED_FULLY" in auth_status["authorities"]):
             raise InvalidCredentials()
 
@@ -269,7 +275,9 @@ class BNetPlugin(Plugin):
         if not self.authentication_client.is_authenticated():
             raise AuthenticationRequired()
         friends_list = await self.social_features.get_friends()
-        # @todo find another way to get friends name, as friend.battle_tag is always empty
+        for friend_id, friend in friends_list.items():
+            friend_presence = await self.social_features.get_friend_presence(friend_id)
+            friend.battle_tag = friend_presence["battle_tag"]
         return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url='', profile_url='') for friend_id, friend in friends_list.items()]
 
     # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
@@ -538,6 +546,7 @@ class BNetPlugin(Plugin):
     async def shutdown(self):
         log.info("Plugin shutdown.")
         await self.authentication_client.shutdown()
+        await self.bnet_client.disconnect()
 
 
 def main():
