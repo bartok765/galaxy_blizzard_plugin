@@ -1,4 +1,5 @@
 import logging as log
+import json
 
 
 class SocialFeatures(object):
@@ -17,7 +18,7 @@ class SocialFeatures(object):
             self._friends[str(friend.id.low)] = friend
 
     def fetch_friend_presence_callback(self, success, entity_id, presence):
-        log.debug(f"fetched friend presence [id = {str(entity_id.low)}]: {presence}")
+        log.debug(f"fetched friend presence [id = {str(entity_id.low)}]: {json.dumps(presence, default=str)}")
         self._friends_presence[str(entity_id.low)] = presence
         return
 

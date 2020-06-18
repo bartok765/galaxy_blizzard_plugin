@@ -297,27 +297,27 @@ class BNetPlugin(Plugin):
 
         game_id = None
         game_title = None
+        if "program_id" in friend_presence:
+            for game in Blizzard.games:
+                if game.family == friend_presence["program_id"]:  # can be a game family, e.g. "Pro" for Overwatch
+                    game_id = game.id
+                    game_title = game.name
+
+        in_game_status = None
         # if "rich_presence" in friend_presence:
-        #     game_id = None  # friend_presence["rich_presence"].program_id  # this is not the game_id
-        #     game_title = None
+        #     in_game_status = None  # friend_presence["rich_presence"]  # .program_id .stream_id
 
         state = PresenceState.Online
-        # if user_info.state == EPersonaState.Online:
-        #     state = PresenceState.Online
-        # elif user_info.state == EPersonaState.Offline:
-        #     state = PresenceState.Offline
-        # elif user_info.state == EPersonaState.Away:
-        #     state = PresenceState.Away
-        # elif user_info.state == EPersonaState.Busy:
-        #     state = PresenceState.Away
-        # else:
-        #     state = PresenceState.Unknown
+        if "game_account_is_away" in friend_presence and friend_presence["game_account_is_away"]:
+            state = PresenceState.Away
+        if "game_account_is_busy" in friend_presence and friend_presence["game_account_is_busy"]:
+            state = PresenceState.Away
 
         return UserPresence(
             presence_state=state,
             game_id=game_id,  # e.g. "5272175" for Overwatch
             game_title=game_title,
-            in_game_status=None,
+            in_game_status=in_game_status,
             full_status=None
         )
 

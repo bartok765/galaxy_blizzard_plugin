@@ -139,14 +139,33 @@ class BNetClient:
         # log.debug(f"fetched query_game_account_info_response packet: {response}")
 
         for f in response.field:
-            if f.key.field == 1 and f.key.group == 2:
+            if f.key.group != 2:
+                continue
+
+            if f.key.field == 1:
                 account_info["game_account_is_online"] = f.value.bool_value
-            if f.key.field == 3 and f.key.group == 2:
-                account_info["program_id"] = f.value.fourcc_value  # e.g. "App" or "BSAp"
-            elif f.key.field == 8 and f.key.group == 2:
+            elif f.key.field == 2:
+                account_info["game_account_is_busy"] = f.value.bool_value
+            elif f.key.field == 3:
+                account_info["program_id"] = f.value.fourcc_value  # e.g. "App", "BSAp" or "Pro" (for Overwatch)
+            elif f.key.field == 4:
+                account_info["game_account_last_online"] = datetime.fromtimestamp(f.value.int_value / 1000 / 1000)  # e.g. 1584194739362351 (microseconds timestamp)
+            elif f.key.field == 5:
+                continue
+            elif f.key.field == 6:
+                continue
+            elif f.key.field == 7:
+                continue
+            elif f.key.field == 8:
                 rich_presence = presence_types_pb2.RichPresence()
-                rich_presence.ParseFromString(f.value.message_value)
+                rich_presence.ParseFromString(f.value.message_value)  # e.g. "\rorP\000\025aorp\030\025"
                 account_info["rich_presence"] = rich_presence
+            elif f.key.field == 9:
+                continue
+            elif f.key.field == 10:
+                account_info["game_account_is_away"] = f.value.bool_value
+            elif f.key.field == 11:
+                continue
 
         callback(True, entity_id, account_info)
 
@@ -158,23 +177,27 @@ class BNetClient:
         # response = presence_pb2.QueryResponse()
         response = presence_service_pb2.QueryResponse()
         response.ParseFromString(body)
-
         # log.debug(f"fetched query_account_info_response packet: {response}")
 
         account_info = {}
 
         for f in response.field:
-            if f.key.field == 1 and f.key.group == 1:
+            if f.key.group != 1:
+                continue
+
+            if f.key.field == 1:
                 account_info["full_name"] = f.value.string_value.encode('utf-8')  # e.g. "Firstname Lastname"
-            elif f.key.field == 3 and f.key.group == 1 and "game_account" not in account_info:
+            elif f.key.field == 3 and "game_account" not in account_info:
                 account_info["game_account"] = f.value.entityid_value  # e.g. high: 144115197778542960 low: 131237370
-            elif f.key.field == 4 and f.key.group == 1:
+            elif f.key.field == 4:
                 account_info["battle_tag"] = f.value.string_value  # e.g. "Username#1234"
-            elif f.key.field == 6 and f.key.group == 1:
+            elif f.key.field == 6:
                 account_info["last_online"] = datetime.fromtimestamp(f.value.int_value/1000/1000)  # e.g. 1584194739362351 (microseconds timestamp)
-            elif f.key.field == 7 and f.key.group == 1:
+            elif f.key.field == 7:
                 account_info["is_away"] = f.value.bool_value
-            elif f.key.field == 11 and f.key.group == 1:
+            elif f.key.field == 8:
+                account_info["away_time"] = f.value.int_value  # e.g. 1583607638026991
+            elif f.key.field == 11:
                 account_info["is_busy"] = f.value.bool_value
 
         if not query_game_account_info or "game_account" not in account_info:
@@ -185,19 +208,23 @@ class BNetClient:
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = account_info["game_account"].high
         request.entity_id.low = account_info["game_account"].low
-
-        for i in [1, 3, 8]:  # 1 - is_online, 3 - program_id, 4 - last_online???, 5 - battle_tag, 7 - ???, 8 - rich_presence, 9 - ???, 10 - is_online???, 11 - last_online???
+        for i in [1, 2, 3, 8, 10]:
             key = request.key.add()
             key.program = 0x424e
             key.group = 2  # 2 game account
             key.field = i
 
-        # request with key.field = 1 (is online) works for all not-offline friends and always returns true (even if user is away)
-        # request with key.field = 3 (program_id) works for all not-offline friends and returns e.g. BSAp
-        # request with key.field = 4 (last_online???) returns e.g. 1584194739362351
-        # request with key.field = 7 (???) returns e.g. high: 72057594037927936 low: 101974425
-        # request with key.field = 8 (rich_presence) only returns when user is in-game
-        # request with key.field = 9 (???) return e.g. 1584228809551117
+        # key.field = 1 (is online) works for all not-offline friends and always returns true
+        # key.field = 2 (is_busy???)
+        # key.field = 3 (program_id) works for all not-offline friends and returns e.g. "BSAp", "Pro" (for Overwatch)
+        # key.field = 4 (last_online???) returns e.g. 1584194739362351
+        # key.field = 5 (battle_tag???)
+        # key.field = 6 (account_name???)
+        # key.field = 7 (account_id???) returns e.g. high: 72057594037927936 low: 101974425
+        # key.field = 8 (rich_presence) only returns when user is in-game, e.g. "\rorP\000\025aorp\030\025"
+        # key.field = 9 (???) returns e.g. 1584228809551117
+        # key.field = 10 (is_away???)
+        # key.field = 11 (last_online???)
 
         self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_query_game_account_info_response, entity_id, account_info, callback))
 
@@ -210,7 +237,8 @@ class BNetClient:
         response = body
         # response = presence_pb2.SubscribeResponse()
         response.ParseFromString(body)
-        log.info(f"fetched presence_response packet: {response}")
+        # log.info(f"fetched presence_response packet: {response}")
+
         callback(True, 0, response)
 
     def _on_subscribe_to_friends_response(self, callback, header, body):
@@ -221,7 +249,8 @@ class BNetClient:
         # response = channel_extracted_pb2.SubscribeToFriendsResponse()
         response = friends_service_pb2.SubscribeToFriendsResponse()
         response.ParseFromString(body)
-        log.info(f"fetched friends_response packet: {response}")
+        # log.info(f"fetched friends_response packet: {response}")
+
         callback(True, response.friends)
 
     def _on_select_game_account(self, header, body):
@@ -350,23 +379,21 @@ class BNetClient:
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
-        # 1 - full_name, 3 - game_account, 4 - battle_tag, 6 - last_online, 7 - is_away???, 8 - ???, 11 - is_busy???
-        for i in [3, 4, 6, 7, 11]:  # 1, 3, 4, 6, 7, 11
+        for i in [3, 4]:
             key = request.key.add()
             key.program = 0x424e
             key.group = 1  # account
             key.field = i
 
-        # request with key.field = 1 (full_name) only works for RealId friends, others will return with header.status = 3 and empty body
-        # request with key.field = 4 (battle_tag) works for all friends
-        # request with key.field = 3 (game_account) works for all friends, but is only returned when friend is not offline!
-        #   key.field = 3 (game_account) can be returned multiple times!
-        #   e.g. id 436369611 (GamerSide#21802) has 2, id 129118839 (ExPliciT#21888) has 3)
-        #   seems to be for different programs, where user is logged in (e.g. PC, Mobile etc.)
-        # request with key.field = 6 (last_online) works for all friends
-        # request with key.field = 7 (is_away) always returns false
-        # request with key.field = 8 (???) return e.g. 1583607638026991
-        # request with key.field = 11 (is_busy) always returns false
+        # key.field = 1 (full_name) only works for RealId friends, others will return with header.status = 3 and empty body
+        # key.field = 3 (game_account) works for all friends, but is only returned when friend is not offline!
+        # > can be returned multiple times!
+        # > seems to be for different programs/games, where user is logged in (e.g. PC, Mobile etc.)
+        # key.field = 4 (battle_tag) works for all friends, returns e.g. "Username#1234"
+        # key.field = 6 (last_online) works for all friends, returns e.g. 1592215097253865
+        # key.field = 7 (is_away) always returns false
+        # key.field = 8 (away_time) return e.g. 1583607638026991
+        # key.field = 11 (is_busy) always returns false
 
         self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_query_account_info_response, entity_id, query_game_account_info, callback))
 
