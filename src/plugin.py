@@ -276,8 +276,7 @@ class BNetPlugin(Plugin):
             raise AuthenticationRequired()
         friends_list = await self.social_features.get_friends()
         for friend_id, friend in friends_list.items():
-            friend_presence = await self.social_features.get_friend_presence(friend_id)
-            friend.battle_tag = friend_presence["battle_tag"]
+            friend.battle_tag = await self.social_features.get_friend_battle_tag(friend_id)
         return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url='', profile_url='') for friend_id, friend in friends_list.items()]
 
     # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:

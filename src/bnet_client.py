@@ -60,7 +60,7 @@ class BNetClient:
 
         # service_id -> { method_id -> callback }
         self._exported_services_map = {}
-        self._exported_services_map[1] = {5: self._on_authentication__logon_result}
+        self._exported_services_map[1] = {5: self._on_authentication__logon}
         # self._exported_services_map[2] = {3: self._on_challenge__challenge_external_request}
         # self._exported_services_map[5] = {1: self._on_friends__friend_notification, 3: self._on_friends__invitation_notification}
         # self._exported_services_map[6] = {1: self._on_channel__add_notification, 6: self._on_channel__update_channel_state_notification}
@@ -128,7 +128,7 @@ class BNetClient:
         self.connection.send(header.SerializeToString())
         self.connection.send(body.SerializeToString())
 
-    def _on_query_game_account_info_response(self, entity_id, account_info, callback, header, body):
+    def _on_presence__query_game_account(self, entity_id, account_info, callback, header, body):
         if not body:
             callback(False, entity_id, account_info)
             return
@@ -169,7 +169,7 @@ class BNetClient:
 
         callback(True, entity_id, account_info)
 
-    def _on_query_account_info_response(self, entity_id, query_game_account_info, callback, header, body):
+    def _on_presence__query_account(self, entity_id, query_game_account_info, callback, header, body):
         if not body:
             callback(False, entity_id, {})
             return
@@ -226,9 +226,9 @@ class BNetClient:
         # key.field = 10 (is_away???)
         # key.field = 11 (last_online???)
 
-        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_query_game_account_info_response, entity_id, account_info, callback))
+        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, entity_id, account_info, callback))
 
-    def _on_subscribe_to_presence_response(self, callback, header, body):
+    def _on_presence__subscribe(self, callback, header, body):
         log.info(f"fetched presence_response header: {header} -- body: {body}")
         if not body:
             callback(False, 0, [])
@@ -241,7 +241,7 @@ class BNetClient:
 
         callback(True, 0, response)
 
-    def _on_subscribe_to_friends_response(self, callback, header, body):
+    def _on_friends__subscribe_to_friends(self, callback, header, body):
         if not body:
             callback(False, [])
             return
@@ -253,14 +253,12 @@ class BNetClient:
 
         callback(True, response.friends)
 
-    def _on_select_game_account(self, header, body):
+    def _on_authentication__select_game_account(self, header, body):
         log.info("successfully connected to battle.net")
         self.connected = True
-        return
 
-    def _on_authentication__logon_result(self, header, body):
+    def _on_authentication__logon(self, header, body):
         if header.status != 0:
-            log.error("failed to connect to battle.net")
             raise Exception("failed to authenticate with battle.net")
 
         # response = authentication_pb2.LogonResult()
@@ -277,28 +275,7 @@ class BNetClient:
         #
         # self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 6, request, self._on_select_game_account)
 
-        self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 4, self._game_account_id, self._on_select_game_account)
-
-    # def _on_authentication__logon_response(self, header, body):
-    #     if header.status != 0:
-    #         log.error("failed to connect to battle.net")
-
-    def logon(self):
-        # request = authentication_pb2.LogonRequest()
-        request = authentication_service_pb2.LogonRequest()
-        # request.program = "App"
-        request.program = "BSAp"  # login in as mobile
-        request.platform = "Win"
-        request.locale = "enUS"
-        request.version = "9166"
-        request.application_version = 1
-        request.public_computer = False
-        request.disconnect_on_cookie_fail = False
-        request.allow_logon_queue_notifications = True
-        request.cached_web_credentials = str.encode(utils.dict_from_cookiejar(self._authentication_client.auth_data.cookie_jar)["BA-tassadar"])
-        # request.user_agent = "Battle.net/1.8.2.8839"
-
-        self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 1, request)
+        self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 4, self._game_account_id, self._on_authentication__select_game_account)
 
     def _on_connection__connect_response(self, header, body):
         # response = connection_pb2.ConnectResponse()
@@ -310,35 +287,7 @@ class BNetClient:
 
         self.logon()
 
-    async def connect(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(10)
-
-        self._set_backend_server_host(self._authentication_client.auth_data.region)
-        connection = ssl.wrap_socket(sock, ssl_version=ssl.PROTOCOL_TLSv1)
-        connection.connect((self._BACKEND_SERVER_HOST, self._BACKEND_SERVER_PORT))
-        connection.do_handshake()
-
-        self.connection = connection
-
-        # request = connection_pb2.ConnectRequest()
-        request = connection_service_pb2.ConnectRequest()
-        request.bind_request.imported_service_hash.extend([fnv1a_32(bytes(s, "UTF-8")) for s in self._imported_services])
-        # request.bind_request.exported_service.extend([connection_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
-        request.bind_request.exported_service.extend([connection_service_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
-
-        self._send_request(self._CONNECTION_SERVICE, 1, request, self._on_connection__connect_response)
-
-        while self.connected is False:
-            await self.process_request()
-
-    async def disconnect(self):
-        if self.connection:
-            self.connection.close()
-        self.connection = None
-        self.connected = False
-
-    async def process_request(self):
+    async def process_response(self):
         header_len_buf = self.connection.recv(2)
         if len(header_len_buf) < 2:
             raise Exception("not enough data to read header length")
@@ -374,7 +323,65 @@ class BNetClient:
         except Exception as e:
             log.debug("failed to run service for received header", str(header), e)
 
-    def query_account_info(self, entity_id, callback, query_game_account_info=True):
+    def logon(self):
+        # request = authentication_pb2.LogonRequest()
+        request = authentication_service_pb2.LogonRequest()
+        # request.program = "App"
+        request.program = "BSAp"  # login in as mobile
+        request.platform = "Win"
+        request.locale = "enUS"
+        request.version = "9166"
+        request.application_version = 1
+        request.public_computer = False
+        request.disconnect_on_cookie_fail = False
+        request.allow_logon_queue_notifications = True
+        request.cached_web_credentials = str.encode(utils.dict_from_cookiejar(self._authentication_client.auth_data.cookie_jar)["BA-tassadar"])
+        # request.user_agent = "Battle.net/1.8.2.8839"
+
+        self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 1, request)
+
+    async def connect(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
+
+        self._set_backend_server_host(self._authentication_client.auth_data.region)
+        connection = ssl.wrap_socket(sock, ssl_version=ssl.PROTOCOL_TLSv1)
+        connection.connect((self._BACKEND_SERVER_HOST, self._BACKEND_SERVER_PORT))
+        connection.do_handshake()
+
+        self.connection = connection
+
+        # request = connection_pb2.ConnectRequest()
+        request = connection_service_pb2.ConnectRequest()
+        request.bind_request.imported_service_hash.extend([fnv1a_32(bytes(s, "UTF-8")) for s in self._imported_services])
+        # request.bind_request.exported_service.extend([connection_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
+        request.bind_request.exported_service.extend([connection_service_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
+
+        self._send_request(self._CONNECTION_SERVICE, 1, request, self._on_connection__connect_response)
+
+        while self.connected is False:
+            await self.process_response()
+
+    async def disconnect(self):
+        if self.connection:
+            self.connection.close()
+        self.connection = None
+        self.connected = False
+
+    def fetch_friend_battle_tag(self, entity_id, callback):
+        # request = presence_pb2.QueryRequest()
+        request = presence_service_pb2.QueryRequest()
+        request.entity_id.high = entity_id.high
+        request.entity_id.low = entity_id.low
+
+        key = request.key.add()
+        key.program = 0x424e
+        key.group = 1  # account
+        key.field = 4  # battle_tag
+
+        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, False, callback))
+
+    def fetch_friend_presence_details(self, entity_id, callback, query_game_account_info=True):
         # request = presence_pb2.QueryRequest()
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
@@ -395,9 +402,9 @@ class BNetClient:
         # key.field = 8 (away_time) return e.g. 1583607638026991
         # key.field = 11 (is_busy) always returns false
 
-        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_query_account_info_response, entity_id, query_game_account_info, callback))
+        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, query_game_account_info, callback))
 
-    def fetch_friend_presence(self, game_account_id, friend_id, callback):
+    def fetch_friend_presence(self, game_account_id, friend_id):
         # request = presence_pb2.SubscribeRequest()
         request = presence_service_pb2.SubscribeRequest()
         # request.agent_id.high = self._account_id.high
@@ -406,7 +413,7 @@ class BNetClient:
         request.entity_id.low = game_account_id.low
         request.object_id = self._next_object()
 
-        self._send_request(self._PRESENCE_SERVICE, 1, request, functools.partial(self._on_subscribe_to_presence_response, callback))
+        self._send_request(self._PRESENCE_SERVICE, 1, request, self._on_presence__subscribe)
 
     def fetch_friends_list(self, callback):
         # request = friends_pb2.SubscribeToFriendsRequest()
@@ -415,4 +422,4 @@ class BNetClient:
         # request.agent_id.low = self._account_id.low
         request.object_id = self._next_object()
 
-        self._send_request(self._FRIENDS_SERVICE, 1, request, functools.partial(self._on_subscribe_to_friends_response, callback))
+        self._send_request(self._FRIENDS_SERVICE, 1, request, functools.partial(self._on_friends__subscribe_to_friends, callback))
