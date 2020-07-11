@@ -296,9 +296,9 @@ class BNetPlugin(Plugin):
 
         game_id = None
         game_title = None
-        if "program_id" in friend_presence:
+        if "game_account_program" in friend_presence:
             for game in Blizzard.games:
-                if game.family == friend_presence["program_id"]:  # can be a game family, e.g. "Pro" for Overwatch
+                if game.family == friend_presence["game_account_program"]:  # can be a game family, e.g. "Pro" for Overwatch
                     game_id = game.id
                     game_title = game.name
 

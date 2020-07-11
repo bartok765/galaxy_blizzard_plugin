@@ -29,19 +29,19 @@ class SocialFeatures(object):
         self._friends = None
         self.bnet_client.fetch_friends_list(self.fetch_friends_list_callback)
         while self._friends is None:
-            await self.bnet_client.process_response()
+            await self.bnet_client.receive_message()
         return self._friends
 
     async def get_friend_battle_tag(self, user_id):
         self._friends_battle_tags[user_id] = None
         self.bnet_client.fetch_friend_battle_tag(self._friends[user_id].id, self.fetch_friend_battle_tag_callback)
         while self._friends_battle_tags[user_id] is None:
-            await self.bnet_client.process_response()
+            await self.bnet_client.receive_message()
         return self._friends_battle_tags[user_id]
 
     async def get_friend_presence(self, user_id):
         self._friends_presence[user_id] = None
-        self.bnet_client.fetch_friend_presence_details(self._friends[user_id].id, self.fetch_friend_presence_callback)
+        self.bnet_client.fetch_friend_presence_account_details(self._friends[user_id].id, self.fetch_friend_presence_callback)
         while self._friends_presence[user_id] is None:
-            await self.bnet_client.process_response()
+            await self.bnet_client.receive_message()
         return self._friends_presence[user_id]

@@ -1,18 +1,18 @@
 import socket
 import ssl
-from fnvhash import fnv1a_32
-# from bnet.protocol import protocol_pb2
-# from bnet.protocol.authentication import authentication_pb2
-# from bnet.protocol.channel_extracted import channel_extracted_pb2
-# from bnet.protocol.connection import connection_pb2
-# from bnet.protocol.friends import friends_pb2
-# from bnet.protocol.presence import presence_pb2
-from bnet import connection_service_pb2, rpc_pb2, friends_service_pb2, authentication_service_pb2, presence_service_pb2, presence_types_pb2
 import struct
 import functools
 import logging as log
+from fnvhash import fnv1a_32
 from requests import utils
 from datetime import datetime
+
+from galaxy.api.errors import BackendError
+
+from bnet import (
+    connection_service_pb2, rpc_pb2, friends_service_pb2, authentication_service_pb2, presence_service_pb2,
+    presence_types_pb2, resource_service_pb2, content_handle_pb2
+)
 
 
 class BNetClient:
@@ -40,6 +40,7 @@ class BNetClient:
             self._PRESENCE_SERVICE,
             self._FRIENDS_SERVICE,
             self._NOTIFICATION_SERVICE,
+            self._RESOURCES_SERVICE,
         )
 
         self._imported_services_map = {
@@ -58,14 +59,15 @@ class BNetClient:
             self.ExportedService(9, "bnet.protocol.notification.NotificationListener"),
         )
 
-        # service_id -> { method_id -> callback }
-        self._exported_services_map = {}
-        self._exported_services_map[1] = {5: self._on_authentication__logon}
-        # self._exported_services_map[2] = {3: self._on_challenge__challenge_external_request}
-        # self._exported_services_map[5] = {1: self._on_friends__friend_notification, 3: self._on_friends__invitation_notification}
-        # self._exported_services_map[6] = {1: self._on_channel__add_notification, 6: self._on_channel__update_channel_state_notification}
-        # self._exported_services_map[8] = {3: self._on_connection__echo_request, 4: self._on_connection__disconnect_notification}
-        # self._exported_services_map[9] = {1: self._on_notification__notification}
+        self._exported_services_map = {
+            # service_id: { method_id: callback }
+            1: {5: self._on_authentication__logon},
+            # 2: {3: self._on_challenge__challenge_external_request},
+            # 5: {1: self._on_friends__friend_notification, 3: self._on_friends__invitation_notification},
+            # 6: {1: self._on_channel__add_notification, 6: self._on_channel__update_channel_state_notification},
+            8: {3: self._on_connection__echo_request, 4: self._on_connection__disconnect_notification},
+            # 9: {1: self._on_notification__notification},
+        }
 
         self._object = 1
         self._token = 0
@@ -103,14 +105,14 @@ class BNetClient:
     def _set_backend_server_host(self, region):
         self._BACKEND_SERVER_HOST = "{}.actual.battle.net".format(region)
 
-    def _send_request(self, service_name, method_id, body, callback=None):
-        # header = protocol_pb2.Header()
+    def _send_message(self, service_name, method_id, body, callback=None):
+        if self.connection is None:
+            raise BackendError("connection to battle.net is closed")
+
         header = rpc_pb2.Header()
+        header.service_id = self._imported_services_map[service_name]
 
-        service_id = self._imported_services_map[service_name]
-        header.service_id = service_id
-
-        if service_id != self._RESPONSE_SERVICE_ID:
+        if header.service_id != self._RESPONSE_SERVICE_ID:
             header.method_id = method_id
             header.token = self._next_token()
         else:
@@ -122,21 +124,28 @@ class BNetClient:
         if callback:
             self._token_callbacks[header.token] = callback
 
-        log.debug(f"protobuf request: {service_name}::{method_id} token {header.token}")
+        log.debug(f"protobuf sending data: service {header.service_id} ({service_name}) method {header.method_id} token {header.token}")
 
         self.connection.send(struct.pack("!H", header.ByteSize()))
         self.connection.send(header.SerializeToString())
         self.connection.send(body.SerializeToString())
+
+    # @todo
+    def _on_resource__content_handle(self, entity_id, account_info, callback, header, body):
+        response = content_handle_pb2.ContentHandle()
+        response.ParseFromString(body)
+        log.debug(f"fetched content:content_handle token: {header.token} body: {response}")
+
+        callback(True, entity_id, account_info)
 
     def _on_presence__query_game_account(self, entity_id, account_info, callback, header, body):
         if not body:
             callback(False, entity_id, account_info)
             return
 
-        # response = presence_pb2.QueryResponse()
         response = presence_service_pb2.QueryResponse()
         response.ParseFromString(body)
-        # log.debug(f"fetched query_game_account_info_response packet: {response}")
+        # log.debug(f"fetched presence:query_response token: {header.token} body: {response}")
 
         for f in response.field:
             if f.key.group != 2:
@@ -147,7 +156,7 @@ class BNetClient:
             elif f.key.field == 2:
                 account_info["game_account_is_busy"] = f.value.bool_value
             elif f.key.field == 3:
-                account_info["program_id"] = f.value.fourcc_value  # e.g. "App", "BSAp" or "Pro" (for Overwatch)
+                account_info["game_account_program"] = f.value.fourcc_value  # e.g. "App", "BSAp" or "Pro" (for Overwatch)
             elif f.key.field == 4:
                 account_info["game_account_last_online"] = datetime.fromtimestamp(f.value.int_value / 1000 / 1000)  # e.g. 1584194739362351 (microseconds timestamp)
             elif f.key.field == 5:
@@ -159,7 +168,7 @@ class BNetClient:
             elif f.key.field == 8:
                 rich_presence = presence_types_pb2.RichPresence()
                 rich_presence.ParseFromString(f.value.message_value)  # e.g. "\rorP\000\025aorp\030\025"
-                account_info["rich_presence"] = rich_presence
+                account_info["game_account_rich_presence"] = rich_presence
             elif f.key.field == 9:
                 continue
             elif f.key.field == 10:
@@ -167,19 +176,22 @@ class BNetClient:
             elif f.key.field == 11:
                 continue
 
-        callback(True, entity_id, account_info)
+        if "game_account_rich_presence" not in account_info:
+            callback(True, entity_id, account_info)
+            return
 
-    def _on_presence__query_account(self, entity_id, query_game_account_info, callback, header, body):
+        self.fetch_friend_presence_game_presence_details(entity_id, account_info, callback)
+
+    def _on_presence__query_account(self, entity_id, account_info, callback, header, body):
         if not body:
             callback(False, entity_id, {})
             return
 
-        # response = presence_pb2.QueryResponse()
         response = presence_service_pb2.QueryResponse()
         response.ParseFromString(body)
-        # log.debug(f"fetched query_account_info_response packet: {response}")
+        # log.debug(f"fetched presence:query_response token: {header.token} body: {response}")
 
-        account_info = {}
+        num_game_accounts = 0
 
         for f in response.field:
             if f.key.group != 1:
@@ -187,8 +199,11 @@ class BNetClient:
 
             if f.key.field == 1:
                 account_info["full_name"] = f.value.string_value.encode('utf-8')  # e.g. "Firstname Lastname"
-            elif f.key.field == 3 and "game_account" not in account_info:
-                account_info["game_account"] = f.value.entityid_value  # e.g. high: 144115197778542960 low: 131237370
+            elif f.key.field == 3:
+                num_game_accounts += 1
+                if f"game_account_{num_game_accounts}" not in account_info:
+                    account_info[f"game_account_{num_game_accounts}"] = {}
+                account_info[f"game_account_{num_game_accounts}"]["id"] = f.value.entityid_value  # e.g. high: 144115197778542960 low: 131237370
             elif f.key.field == 4:
                 account_info["battle_tag"] = f.value.string_value  # e.g. "Username#1234"
             elif f.key.field == 6:
@@ -200,56 +215,22 @@ class BNetClient:
             elif f.key.field == 11:
                 account_info["is_busy"] = f.value.bool_value
 
-        if not query_game_account_info or "game_account" not in account_info:
+        if num_game_accounts == 0:
             callback(True, entity_id, account_info)
             return
 
-        # request = presence_pb2.QueryRequest()
-        request = presence_service_pb2.QueryRequest()
-        request.entity_id.high = account_info["game_account"].high
-        request.entity_id.low = account_info["game_account"].low
-        for i in [1, 2, 3, 8, 10]:
-            key = request.key.add()
-            key.program = 0x424e
-            key.group = 2  # 2 game account
-            key.field = i
-
-        # key.field = 1 (is online) works for all not-offline friends and always returns true
-        # key.field = 2 (is_busy???)
-        # key.field = 3 (program_id) works for all not-offline friends and returns e.g. "BSAp", "Pro" (for Overwatch)
-        # key.field = 4 (last_online???) returns e.g. 1584194739362351
-        # key.field = 5 (battle_tag???)
-        # key.field = 6 (account_name???)
-        # key.field = 7 (account_id???) returns e.g. high: 72057594037927936 low: 101974425
-        # key.field = 8 (rich_presence) only returns when user is in-game, e.g. "\rorP\000\025aorp\030\025"
-        # key.field = 9 (???) returns e.g. 1584228809551117
-        # key.field = 10 (is_away???)
-        # key.field = 11 (last_online???)
-
-        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, entity_id, account_info, callback))
-
-    def _on_presence__subscribe(self, callback, header, body):
-        log.info(f"fetched presence_response header: {header} -- body: {body}")
-        if not body:
-            callback(False, 0, [])
-            return
-
-        response = body
-        # response = presence_pb2.SubscribeResponse()
-        response.ParseFromString(body)
-        # log.info(f"fetched presence_response packet: {response}")
-
-        callback(True, 0, response)
+        for i in range(num_game_accounts):
+            game_account_id = account_info[f"game_account_{i + 1}"]["id"]
+            self.fetch_friend_presence_game_account_details(entity_id, game_account_id, account_info, callback)
 
     def _on_friends__subscribe_to_friends(self, callback, header, body):
         if not body:
             callback(False, [])
             return
 
-        # response = channel_extracted_pb2.SubscribeToFriendsResponse()
         response = friends_service_pb2.SubscribeToFriendsResponse()
         response.ParseFromString(body)
-        # log.info(f"fetched friends_response packet: {response}")
+        # log.info(f"fetched friends:subscribe_to_friends_response token: {header.token} body: {response}")
 
         callback(True, response.friends)
 
@@ -259,44 +240,58 @@ class BNetClient:
 
     def _on_authentication__logon(self, header, body):
         if header.status != 0:
-            raise Exception("failed to authenticate with battle.net")
+            raise BackendError("failed to authenticate with battle.net")
 
-        # response = authentication_pb2.LogonResult()
         response = authentication_service_pb2.LogonResult()
         response.ParseFromString(body)
-        # log.debug(f"fetched logon_result packet: {response}")
+        # log.debug(f"fetched authentication:logon_result token: {header.token} body: {response}")
 
         self._account_id = response.account
         self._game_account_id = response.game_account[0]
 
-        # request = authentication_service_pb2.SelectGameAccountRequest()
-        # request.game_account.high = self._game_account_id.high
-        # request.game_account.low = self._game_account_id.low
-        #
-        # self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 6, request, self._on_select_game_account)
+        self._send_message(self._AUTHENTICATION_SERVER_SERVICE, 4, self._game_account_id, self._on_authentication__select_game_account)
 
-        self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 4, self._game_account_id, self._on_authentication__select_game_account)
+    def _on_connection__echo_request(self, header, body):
+        request = connection_service_pb2.EchoRequest()
+        request.ParseFromString(body)
+        log.debug(f"fetched connection:echo_request token: {header.token} body: {request}")
+
+        response = connection_service_pb2.EchoResponse()
+        response.time = request.time
+        response.payload = request.payload
+
+        self._send_message(self._RESPONSE_SERVICE, header.token, response)
+
+    def _on_connection__disconnect_notification(self, header, body):
+        response = connection_service_pb2.DisconnectNotification()
+        response.ParseFromString(body)
+        log.debug(f"fetched connection:disconnect_notification token: {header.token} body: {response}")
+
+        # error_code: 3014
+
+        self.disconnect()
 
     def _on_connection__connect_response(self, header, body):
-        # response = connection_pb2.ConnectResponse()
         response = connection_service_pb2.ConnectResponse()
         response.ParseFromString(body)
+        # log.debug(f"fetched connection:connect_response token: {header.token} body: {response}")
 
         self._imported_services_map.update(zip(self._imported_services, response.bind_response.imported_service_id))
-        # self._exported_services_map[1] = {5: self._on_authentication__logon_result}
 
         self.logon()
 
-    async def process_response(self):
+    async def receive_message(self):
+        if self.connection is None:
+            raise BackendError("connection to battle.net is closed")
+
         header_len_buf = self.connection.recv(2)
         if len(header_len_buf) < 2:
-            raise Exception("not enough data to read header length")
+            raise BackendError("not enough data to read header length")
         header_len = struct.unpack("!H", header_len_buf)[0]
         header_buf = self.connection.recv(header_len)
         if len(header_buf) < header_len:
-            raise Exception("not enough data to read header data")
+            raise BackendError("not enough data to read header data")
 
-        # header = protocol_pb2.Header()
         header = rpc_pb2.Header()
         header.ParseFromString(header_buf)
 
@@ -304,12 +299,13 @@ class BNetClient:
         if body_len:
             body = self.connection.recv(body_len)
             if len(body) < body_len:
-                raise Exception("not enough data to read body data")
+                raise BackendError("not enough data to read body data")
         else:
             body = None
 
-        log.debug(f"protobuf response header: token {header.token} status {header.status} size {header.size}")
+        log.debug(f"protobuf receiving data: service {header.service_id} method {header.method_id} token {header.token} status {header.status} size {header.size}")
 
+        # this is a response to a request from us
         if header.service_id == self._RESPONSE_SERVICE_ID:
             if header.token in self._token_callbacks:
                 callback = self._token_callbacks[header.token]
@@ -318,13 +314,14 @@ class BNetClient:
             else:
                 log.debug("unexpected response received", str(header))
 
+        # server requesting something from us
         try:
-            self._exported_services_map[header.service_id][header.method_id](header, body)
+            callback = self._exported_services_map[header.service_id][header.method_id]
+            callback(header, body)
         except Exception as e:
             log.debug("failed to run service for received header", str(header), e)
 
     def logon(self):
-        # request = authentication_pb2.LogonRequest()
         request = authentication_service_pb2.LogonRequest()
         # request.program = "App"
         request.program = "BSAp"  # login in as mobile
@@ -338,7 +335,7 @@ class BNetClient:
         request.cached_web_credentials = str.encode(utils.dict_from_cookiejar(self._authentication_client.auth_data.cookie_jar)["BA-tassadar"])
         # request.user_agent = "Battle.net/1.8.2.8839"
 
-        self._send_request(self._AUTHENTICATION_SERVER_SERVICE, 1, request)
+        self._send_message(self._AUTHENTICATION_SERVER_SERVICE, 1, request)
 
     async def connect(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -351,25 +348,23 @@ class BNetClient:
 
         self.connection = connection
 
-        # request = connection_pb2.ConnectRequest()
         request = connection_service_pb2.ConnectRequest()
         request.bind_request.imported_service_hash.extend([fnv1a_32(bytes(s, "UTF-8")) for s in self._imported_services])
-        # request.bind_request.exported_service.extend([connection_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
         request.bind_request.exported_service.extend([connection_service_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
 
-        self._send_request(self._CONNECTION_SERVICE, 1, request, self._on_connection__connect_response)
+        self._send_message(self._CONNECTION_SERVICE, 1, request, self._on_connection__connect_response)
 
         while self.connected is False:
-            await self.process_response()
+            await self.receive_message()
 
     async def disconnect(self):
+        log.info("disconnected from battle.net")
         if self.connection:
             self.connection.close()
         self.connection = None
         self.connected = False
 
     def fetch_friend_battle_tag(self, entity_id, callback):
-        # request = presence_pb2.QueryRequest()
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
@@ -379,10 +374,9 @@ class BNetClient:
         key.group = 1  # account
         key.field = 4  # battle_tag
 
-        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, False, callback))
+        self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, {}, callback))
 
-    def fetch_friend_presence_details(self, entity_id, callback, query_game_account_info=True):
-        # request = presence_pb2.QueryRequest()
+    def fetch_friend_presence_account_details(self, entity_id, callback):
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
@@ -402,24 +396,42 @@ class BNetClient:
         # key.field = 8 (away_time) return e.g. 1583607638026991
         # key.field = 11 (is_busy) always returns false
 
-        self._send_request(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, query_game_account_info, callback))
+        self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, {}, callback))
 
-    def fetch_friend_presence(self, game_account_id, friend_id):
-        # request = presence_pb2.SubscribeRequest()
-        request = presence_service_pb2.SubscribeRequest()
-        # request.agent_id.high = self._account_id.high
-        # request.agent_id.low = self._account_id.low
+    def fetch_friend_presence_game_account_details(self, entity_id, game_account_id, account_info, callback):
+        request = presence_service_pb2.QueryRequest()
         request.entity_id.high = game_account_id.high
         request.entity_id.low = game_account_id.low
-        request.object_id = self._next_object()
+        for i in [1, 2, 3, 10]:  # for i in [1, 2, 3, 8, 10]:  # with rich_presence
+            key = request.key.add()
+            key.program = 0x424e
+            key.group = 2  # 2 game account
+            key.field = i
 
-        self._send_request(self._PRESENCE_SERVICE, 1, request, self._on_presence__subscribe)
+        # key.field = 1 (is online) works for all not-offline friends and always returns true
+        # key.field = 2 (is_busy???)
+        # key.field = 3 (program_id) works for all not-offline friends and returns e.g. "BSAp", "Pro" (for Overwatch)
+        # key.field = 4 (last_online???) returns e.g. 1584194739362351
+        # key.field = 5 (battle_tag???)
+        # key.field = 6 (account_name???)
+        # key.field = 7 (account_id???) returns e.g. high: 72057594037927936 low: 101974425
+        # key.field = 8 (rich_presence) only returns when user is in-game, e.g. "\rorP\000\025aorp\030\025"
+        # key.field = 9 (???) returns e.g. 1584228809551117
+        # key.field = 10 (is_away???)
+        # key.field = 11 (last_online???)
+
+        self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, entity_id, account_info, callback))
+
+    def fetch_friend_presence_game_presence_details(self, entity_id, account_info, callback):
+        request = resource_service_pb2.ContentHandleRequest()
+        request.program_id = account_info["game_account_rich_presence"].program_id
+        request.stream_id = account_info["game_account_rich_presence"].stream_id
+        # message_id = account_info["game_account_rich_presence"].index
+
+        self._send_message(self._RESOURCES_SERVICE, 1, request, functools.partial(self._on_resource__content_handle, entity_id, account_info, callback))
 
     def fetch_friends_list(self, callback):
-        # request = friends_pb2.SubscribeToFriendsRequest()
         request = friends_service_pb2.SubscribeToFriendsRequest()
-        # request.agent_id.high = self._account_id.high
-        # request.agent_id.low = self._account_id.low
         request.object_id = self._next_object()
 
-        self._send_request(self._FRIENDS_SERVICE, 1, request, functools.partial(self._on_friends__subscribe_to_friends, callback))
+        self._send_message(self._FRIENDS_SERVICE, 1, request, functools.partial(self._on_friends__subscribe_to_friends, callback))
