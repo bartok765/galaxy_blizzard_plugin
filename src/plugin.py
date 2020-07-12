@@ -303,10 +303,11 @@ class BNetPlugin(Plugin):
         game_id = None
         game_title = None
         if "game_account_program" in friend_presence:
-            for game in Blizzard.games:
+            for game in Blizzard.BATTLENET_GAMES:
                 if game.family == friend_presence["game_account_program"]:  # can be a game family, e.g. "Pro" for Overwatch
-                    game_id = game.id
+                    game_id = game.uid
                     game_title = game.name
+                    break
 
         in_game_status = None
         # if "rich_presence" in friend_presence:

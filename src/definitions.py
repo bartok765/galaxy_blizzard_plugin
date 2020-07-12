@@ -116,10 +116,6 @@ class _Blizzard(object, metaclass=Singleton):
         """
         return self._games[key]
 
-    @property
-    def games(self):
-        return [game for game in self._GAMES]
-
     def game_by_title_id(self, title_id: int, cn: bool) -> BlizzardGame:
         """
         :param cn: flag if china game definitions should be search though

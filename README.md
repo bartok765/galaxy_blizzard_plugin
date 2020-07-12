@@ -77,7 +77,7 @@ Build package
 inv build [--output=<output_folder>] [--ziparchive=<zip_package_name.zip>]
 ```
 
-#### Shortcuts:
+### Shortcuts:
 
 Build to local plugins folder
 ```bash
