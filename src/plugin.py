@@ -100,8 +100,8 @@ class BNetPlugin(Plugin):
                 self.update_local_game_status(LocalGame(blizz_id, state))
 
     def log_out(self):
-        if self.backend_client:
-            asyncio.create_task(self.authentication_client.shutdown())
+        asyncio.create_task(self.authentication_client.shutdown())
+        asyncio.create_task(self.bnet_client.disconnect())
         self.authentication_client.user_details = None
 
     async def open_battlenet_browser(self):
@@ -229,7 +229,8 @@ class BNetPlugin(Plugin):
                     auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
                 except (BackendNotAvailable, BackendError, NetworkError, UnknownError, BackendTimeout) as e:
                     raise e
-                except Exception:
+                except Exception as e:
+                    log.error(f"authentication exception: {repr(e)}")
                     raise InvalidCredentials()
 
                 if self.authentication_client.validate_auth_status(auth_status):
@@ -259,7 +260,8 @@ class BNetPlugin(Plugin):
             auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
         except (BackendNotAvailable, BackendError, NetworkError, UnknownError, BackendTimeout) as e:
             raise e
-        except Exception:
+        except Exception as e:
+            log.error(f"authentication exception: {repr(e)}")
             raise InvalidCredentials()
 
         if not ("authorities" in auth_status and "IS_AUTHENTICATED_FULLY" in auth_status["authorities"]):
@@ -274,16 +276,20 @@ class BNetPlugin(Plugin):
     async def get_friends(self):
         if not self.authentication_client.is_authenticated():
             raise AuthenticationRequired()
+        if not self.bnet_client.authenticated:
+            raise BackendError("not authenticated with battle.net")
+
         friends_list = await self.social_features.get_friends()
-        for friend_id, friend in friends_list.items():
-            friend.battle_tag = await self.social_features.get_friend_battle_tag(friend_id)
+
         return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url='', profile_url='') for friend_id, friend in friends_list.items()]
 
     # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
     #     return None
 
     async def get_user_presence(self, user_id: str, context: Any) -> UserPresence:
-        log.debug(f"getting presence for user {user_id}")
+        if not self.bnet_client.authenticated:
+            raise BackendError("not authenticated with battle.net")
+
         friend_presence = await self.social_features.get_friend_presence(user_id)
         # user_info = context.get(user_id)
         # if user_info is None:

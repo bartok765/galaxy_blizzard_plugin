@@ -1,5 +1,4 @@
-import socket
-import ssl
+import asyncio
 import struct
 import functools
 import logging as log
@@ -74,8 +73,9 @@ class BNetClient:
         self._token_callbacks = {}
         self._account_id = None
         self._game_account_id = None
-        self.connection = None
-        self.connected = False
+        self.reader = None
+        self.writer = None
+        self.authenticated = False
 
     class BNetService:
         def __init__(self, service_name):
@@ -105,8 +105,8 @@ class BNetClient:
     def _set_backend_server_host(self, region):
         self._BACKEND_SERVER_HOST = "{}.actual.battle.net".format(region)
 
-    def _send_message(self, service_name, method_id, body, callback=None):
-        if self.connection is None:
+    async def _send_message(self, service_name, method_id, body, callback=None):
+        if self.writer is None:
             raise BackendError("connection to battle.net is closed")
 
         header = rpc_pb2.Header()
@@ -126,21 +126,23 @@ class BNetClient:
 
         log.debug(f"protobuf sending data: service {header.service_id} ({service_name}) method {header.method_id} token {header.token}")
 
-        self.connection.send(struct.pack("!H", header.ByteSize()))
-        self.connection.send(header.SerializeToString())
-        self.connection.send(body.SerializeToString())
+        self.writer.write(struct.pack("!H", header.ByteSize()))
+        self.writer.write(header.SerializeToString())
+        self.writer.write(body.SerializeToString())
+        await self.writer.drain()
 
     # @todo
-    def _on_resource__content_handle(self, entity_id, account_info, callback, header, body):
+    async def _on_resource__content_handle(self, entity_id, account_info, future: asyncio.Future, header, body):
         response = content_handle_pb2.ContentHandle()
         response.ParseFromString(body)
-        log.debug(f"fetched content:content_handle token: {header.token} body: {response}")
+        # log.debug(f"fetched content:content_handle token: {header.token} body: {response}")
 
-        callback(True, entity_id, account_info)
+        future.set_result(account_info)
 
-    def _on_presence__query_game_account(self, entity_id, account_info, callback, header, body):
+    async def _on_presence__query_game_account(self, entity_id, account_info, future: asyncio.Future, header, body):
         if not body:
-            callback(False, entity_id, account_info)
+            log.warning("failed presence:query_response")
+            future.set_result(account_info)
             return
 
         response = presence_service_pb2.QueryResponse()
@@ -177,14 +179,15 @@ class BNetClient:
                 continue
 
         if "game_account_rich_presence" not in account_info:
-            callback(True, entity_id, account_info)
+            future.set_result(account_info)
             return
 
-        self.fetch_friend_presence_game_presence_details(entity_id, account_info, callback)
+        await self.fetch_friend_presence_game_presence_details(entity_id, account_info, future)
 
-    def _on_presence__query_account(self, entity_id, account_info, callback, header, body):
+    async def _on_presence__query_account(self, entity_id, account_info, future: asyncio.Future, header, body):
         if not body:
-            callback(False, entity_id, {})
+            log.error("failed presence:query_response")
+            future.set_result({})
             return
 
         response = presence_service_pb2.QueryResponse()
@@ -216,29 +219,31 @@ class BNetClient:
                 account_info["is_busy"] = f.value.bool_value
 
         if num_game_accounts == 0:
-            callback(True, entity_id, account_info)
+            future.set_result(account_info)
             return
 
         for i in range(num_game_accounts):
             game_account_id = account_info[f"game_account_{i + 1}"]["id"]
-            self.fetch_friend_presence_game_account_details(entity_id, game_account_id, account_info, callback)
+            await self.fetch_friend_presence_game_account_details(entity_id, game_account_id, account_info, future)
 
-    def _on_friends__subscribe_to_friends(self, callback, header, body):
+    async def _on_friends__subscribe_to_friends(self, future: asyncio.Future, header, body):
         if not body:
-            callback(False, [])
+            log.error("failed friends:subscribe_to_friends_response")
+            future.set_result([])
             return
 
         response = friends_service_pb2.SubscribeToFriendsResponse()
         response.ParseFromString(body)
-        # log.info(f"fetched friends:subscribe_to_friends_response token: {header.token} body: {response}")
+        # log.debug(f"fetched friends:subscribe_to_friends_response token: {header.token} body: {response}")
+        # log.debug(f"fetched friends:subscribe_to_friends_response token: {header.token}")
 
-        callback(True, response.friends)
+        future.set_result(response.friends)
 
-    def _on_authentication__select_game_account(self, header, body):
-        log.info("successfully connected to battle.net")
-        self.connected = True
+    async def _on_authentication__select_game_account(self, header, body):
+        log.info("successfully authenticated with battle.net")
+        self.authenticated = True
 
-    def _on_authentication__logon(self, header, body):
+    async def _on_authentication__logon(self, header, body):
         if header.status != 0:
             raise BackendError("failed to authenticate with battle.net")
 
@@ -249,9 +254,9 @@ class BNetClient:
         self._account_id = response.account
         self._game_account_id = response.game_account[0]
 
-        self._send_message(self._AUTHENTICATION_SERVER_SERVICE, 4, self._game_account_id, self._on_authentication__select_game_account)
+        await self._send_message(self._AUTHENTICATION_SERVER_SERVICE, 4, self._game_account_id, self._on_authentication__select_game_account)
 
-    def _on_connection__echo_request(self, header, body):
+    async def _on_connection__echo_request(self, header, body):
         request = connection_service_pb2.EchoRequest()
         request.ParseFromString(body)
         log.debug(f"fetched connection:echo_request token: {header.token} body: {request}")
@@ -260,35 +265,44 @@ class BNetClient:
         response.time = request.time
         response.payload = request.payload
 
-        self._send_message(self._RESPONSE_SERVICE, header.token, response)
+        await self._send_message(self._RESPONSE_SERVICE, header.token, response)
 
-    def _on_connection__disconnect_notification(self, header, body):
+    async def _on_connection__disconnect_notification(self, header, body):
         response = connection_service_pb2.DisconnectNotification()
         response.ParseFromString(body)
         log.debug(f"fetched connection:disconnect_notification token: {header.token} body: {response}")
 
         # error_code: 3014
 
-        self.disconnect()
+        await self.disconnect()
 
-    def _on_connection__connect_response(self, header, body):
+    async def _on_connection__connect_response(self, header, body):
         response = connection_service_pb2.ConnectResponse()
         response.ParseFromString(body)
         # log.debug(f"fetched connection:connect_response token: {header.token} body: {response}")
 
         self._imported_services_map.update(zip(self._imported_services, response.bind_response.imported_service_id))
 
-        self.logon()
+        await self.logon()
 
-    async def receive_message(self):
-        if self.connection is None:
+    async def _watch_receive_message(self):
+        while True:
+            try:
+                await self._receive_message()
+            except Exception as e:
+                log.error(f'battle.net socket error: {repr(e)}')
+
+    async def _receive_message(self):
+        if self.reader is None:
             raise BackendError("connection to battle.net is closed")
 
-        header_len_buf = self.connection.recv(2)
+        header_len_buf = await self.reader.read(2)
+        if not header_len_buf:
+            return
         if len(header_len_buf) < 2:
             raise BackendError("not enough data to read header length")
         header_len = struct.unpack("!H", header_len_buf)[0]
-        header_buf = self.connection.recv(header_len)
+        header_buf = await self.reader.read(header_len)
         if len(header_buf) < header_len:
             raise BackendError("not enough data to read header data")
 
@@ -297,7 +311,7 @@ class BNetClient:
 
         body_len = header.size
         if body_len:
-            body = self.connection.recv(body_len)
+            body = await self.reader.read(body_len)
             if len(body) < body_len:
                 raise BackendError("not enough data to read body data")
         else:
@@ -309,7 +323,7 @@ class BNetClient:
         if header.service_id == self._RESPONSE_SERVICE_ID:
             if header.token in self._token_callbacks:
                 callback = self._token_callbacks[header.token]
-                callback(header, body)
+                await callback(header, body)
                 del self._token_callbacks[header.token]
             else:
                 log.debug("unexpected response received", str(header))
@@ -317,11 +331,11 @@ class BNetClient:
         # server requesting something from us
         try:
             callback = self._exported_services_map[header.service_id][header.method_id]
-            callback(header, body)
+            await callback(header, body)
         except Exception as e:
             log.debug("failed to run service for received header", str(header), e)
 
-    def logon(self):
+    async def logon(self):
         request = authentication_service_pb2.LogonRequest()
         # request.program = "App"
         request.program = "BSAp"  # login in as mobile
@@ -335,36 +349,30 @@ class BNetClient:
         request.cached_web_credentials = str.encode(utils.dict_from_cookiejar(self._authentication_client.auth_data.cookie_jar)["BA-tassadar"])
         # request.user_agent = "Battle.net/1.8.2.8839"
 
-        self._send_message(self._AUTHENTICATION_SERVER_SERVICE, 1, request)
+        await self._send_message(self._AUTHENTICATION_SERVER_SERVICE, 1, request)
 
     async def connect(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(10)
-
         self._set_backend_server_host(self._authentication_client.auth_data.region)
-        connection = ssl.wrap_socket(sock, ssl_version=ssl.PROTOCOL_TLSv1)
-        connection.connect((self._BACKEND_SERVER_HOST, self._BACKEND_SERVER_PORT))
-        connection.do_handshake()
 
-        self.connection = connection
+        self.reader, self.writer = await asyncio.open_connection(
+            self._BACKEND_SERVER_HOST, self._BACKEND_SERVER_PORT, ssl=True
+        )
 
         request = connection_service_pb2.ConnectRequest()
         request.bind_request.imported_service_hash.extend([fnv1a_32(bytes(s, "UTF-8")) for s in self._imported_services])
         request.bind_request.exported_service.extend([connection_service_pb2.BoundService(hash=fnv1a_32(bytes(s.name, "UTF-8")), id=s.id ) for s in self._exported_services])
 
-        self._send_message(self._CONNECTION_SERVICE, 1, request, self._on_connection__connect_response)
+        await self._send_message(self._CONNECTION_SERVICE, 1, request, self._on_connection__connect_response)
 
-        while self.connected is False:
-            await self.receive_message()
+        asyncio.create_task(self._watch_receive_message())
 
     async def disconnect(self):
         log.info("disconnected from battle.net")
-        if self.connection:
-            self.connection.close()
-        self.connection = None
-        self.connected = False
+        if self.writer:
+            self.writer.close()
+        self.authenticated = False
 
-    def fetch_friend_battle_tag(self, entity_id, callback):
+    async def fetch_friend_battle_tag(self, entity_id, future: asyncio.Future):
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
@@ -374,9 +382,9 @@ class BNetClient:
         key.group = 1  # account
         key.field = 4  # battle_tag
 
-        self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, {}, callback))
+        await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, {}, future))
 
-    def fetch_friend_presence_account_details(self, entity_id, callback):
+    async def fetch_friend_presence_account_details(self, entity_id, future: asyncio.Future):
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
@@ -396,9 +404,9 @@ class BNetClient:
         # key.field = 8 (away_time) return e.g. 1583607638026991
         # key.field = 11 (is_busy) always returns false
 
-        self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, {}, callback))
+        await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, entity_id, {}, future))
 
-    def fetch_friend_presence_game_account_details(self, entity_id, game_account_id, account_info, callback):
+    async def fetch_friend_presence_game_account_details(self, entity_id, game_account_id, account_info, future: asyncio.Future):
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = game_account_id.high
         request.entity_id.low = game_account_id.low
@@ -420,18 +428,18 @@ class BNetClient:
         # key.field = 10 (is_away???)
         # key.field = 11 (last_online???)
 
-        self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, entity_id, account_info, callback))
+        await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, entity_id, account_info, future))
 
-    def fetch_friend_presence_game_presence_details(self, entity_id, account_info, callback):
+    async def fetch_friend_presence_game_presence_details(self, entity_id, account_info, future: asyncio.Future):
         request = resource_service_pb2.ContentHandleRequest()
         request.program_id = account_info["game_account_rich_presence"].program_id
         request.stream_id = account_info["game_account_rich_presence"].stream_id
         # message_id = account_info["game_account_rich_presence"].index
 
-        self._send_message(self._RESOURCES_SERVICE, 1, request, functools.partial(self._on_resource__content_handle, entity_id, account_info, callback))
+        await self._send_message(self._RESOURCES_SERVICE, 1, request, functools.partial(self._on_resource__content_handle, entity_id, account_info, future))
 
-    def fetch_friends_list(self, callback):
+    async def fetch_friends_list(self, future: asyncio.Future):
         request = friends_service_pb2.SubscribeToFriendsRequest()
         request.object_id = self._next_object()
 
-        self._send_message(self._FRIENDS_SERVICE, 1, request, functools.partial(self._on_friends__subscribe_to_friends, callback))
+        await self._send_message(self._FRIENDS_SERVICE, 1, request, functools.partial(self._on_friends__subscribe_to_friends, future))
