@@ -7,7 +7,6 @@ class SocialFeatures(object):
     def __init__(self, _bnet_client):
         self.bnet_client = _bnet_client
         self._friends = {}
-        self._friends_presence = {}
 
     async def get_friends(self):
         _friends_future = asyncio.get_running_loop().create_future()
@@ -28,12 +27,23 @@ class SocialFeatures(object):
         return self._friends
 
     async def get_friend_presence(self, user_id):
+        if user_id not in self._friends:
+            return None
+
         _friend_presence_future = asyncio.get_running_loop().create_future()
         await self.bnet_client.fetch_friend_presence_account_details(self._friends[user_id].id, _friend_presence_future)
         await _friend_presence_future
 
-        self._friends_presence[user_id] = _friend_presence_future.result()
+        account_info = _friend_presence_future.result()
 
-        log.debug(f"fetched friend presence [id = user_id]: {json.dumps(self._friends_presence[user_id], default=str)}")
+        if "game_accounts" in account_info:
+            for game_account in account_info["game_accounts"]:
+                _game_account_future = asyncio.get_running_loop().create_future()
+                await self.bnet_client.fetch_friend_presence_game_account_details(game_account["id"], _game_account_future)
+                await _game_account_future
 
-        return self._friends_presence[user_id]
+                game_account.update(_game_account_future.result())
+
+        log.debug(f"fetched friend presence ({user_id}): {json.dumps(account_info, default=str)}")
+
+        return account_info

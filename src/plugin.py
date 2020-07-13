@@ -291,39 +291,30 @@ class BNetPlugin(Plugin):
             raise BackendError("not authenticated with battle.net")
 
         friend_presence = await self.social_features.get_friend_presence(user_id)
-        # user_info = context.get(user_id)
-        # if user_info is None:
-        #     raise UnknownError(
-        #         "User {} not in friend list (plugin only supports fetching presence for friends)".format(user_id)
-        #     )
 
-        if friend_presence is None or "game_account_is_online" not in friend_presence:
+        if friend_presence is None or "game_accounts" not in friend_presence:
             return UserPresence(presence_state=PresenceState.Offline)
+
+        # collect relevant info from all game_accounts (program, state)
+        _programs = [game_account.get('program') for game_account in friend_presence["game_accounts"]]
+        _away_states = [game_account.get('is_away', False) for game_account in friend_presence["game_accounts"]]
 
         game_id = None
         game_title = None
-        if "game_account_program" in friend_presence:
-            for game in Blizzard.BATTLENET_GAMES:
-                if game.family == friend_presence["game_account_program"]:  # can be a game family, e.g. "Pro" for Overwatch
-                    game_id = game.uid
-                    game_title = game.name
-                    break
+        for game in Blizzard.BATTLENET_GAMES:
+            if game.family in _programs:  # program can be a game family, e.g. "Pro" for Overwatch
+                game_id = game.uid
+                game_title = game.name
 
-        in_game_status = None
-        # if "rich_presence" in friend_presence:
-        #     in_game_status = None  # friend_presence["rich_presence"]  # .program_id .stream_id
-
-        state = PresenceState.Online
-        if "game_account_is_away" in friend_presence and friend_presence["game_account_is_away"]:
-            state = PresenceState.Away
-        if "game_account_is_busy" in friend_presence and friend_presence["game_account_is_busy"]:
-            state = PresenceState.Away
+        state = PresenceState.Away
+        if False in _away_states:  # if one game_account says is_away = False, than the user is online. yeah.
+            state = PresenceState.Online
 
         return UserPresence(
             presence_state=state,
             game_id=game_id,  # e.g. "5272175" for Overwatch
             game_title=game_title,
-            in_game_status=in_game_status,
+            in_game_status=None,
             full_status=None
         )
 
