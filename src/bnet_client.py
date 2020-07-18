@@ -9,8 +9,8 @@ from datetime import datetime
 from galaxy.api.errors import BackendError
 
 from bnet import (
-    connection_service_pb2, rpc_pb2, friends_service_pb2, authentication_service_pb2, presence_service_pb2,
-    presence_types_pb2, resource_service_pb2, content_handle_pb2
+    connection_service_pb2, rpc_pb2, friends_service_pb2, authentication_service_pb2,
+    presence_service_pb2, presence_types_pb2
 )
 
 
@@ -130,14 +130,6 @@ class BNetClient:
         self.writer.write(header.SerializeToString())
         self.writer.write(body.SerializeToString())
         await self.writer.drain()
-
-    # @todo
-    async def _on_resource__content_handle(self, future: asyncio.Future, header, body):
-        response = content_handle_pb2.ContentHandle()
-        response.ParseFromString(body)
-        # log.debug(f"fetched content:content_handle token: {header.token} body: {response}")
-
-        future.set_result({})
 
     async def _on_presence__query_game_account(self, future: asyncio.Future, header, body):
         if not body:
@@ -418,14 +410,6 @@ class BNetClient:
         # key.field = 11 (last_online???)
 
         await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, future))
-
-    async def fetch_friend_presence_game_presence_details(self, rich_presence, future: asyncio.Future):
-        request = resource_service_pb2.ContentHandleRequest()
-        request.program_id = rich_presence.program_id
-        request.stream_id = rich_presence.stream_id
-        # message_id = rich_presence.index
-
-        await self._send_message(self._RESOURCES_SERVICE, 1, request, functools.partial(self._on_resource__content_handle, future))
 
     async def fetch_friends_list(self, future: asyncio.Future):
         request = friends_service_pb2.SubscribeToFriendsRequest()

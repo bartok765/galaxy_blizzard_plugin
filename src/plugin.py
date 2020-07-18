@@ -99,11 +99,6 @@ class BNetPlugin(Plugin):
                 state = LocalGameState.None_
                 self.update_local_game_status(LocalGame(blizz_id, state))
 
-    def log_out(self):
-        asyncio.create_task(self.authentication_client.shutdown())
-        asyncio.create_task(self.bnet_client.disconnect())
-        self.authentication_client.user_details = None
-
     async def open_battlenet_browser(self):
         url = self.authentication_client.blizzard_battlenet_download_url
         log.info(f'Opening battle.net website: {url}')
@@ -281,7 +276,7 @@ class BNetPlugin(Plugin):
 
         friends_list = await self.social_features.get_friends()
 
-        return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url='', profile_url='') for friend_id, friend in friends_list.items()]
+        return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url=None, profile_url=None) for friend_id, friend in friends_list.items()]
 
     # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
     #     return None
@@ -312,7 +307,7 @@ class BNetPlugin(Plugin):
 
         return UserPresence(
             presence_state=state,
-            game_id=game_id,  # e.g. "5272175" for Overwatch
+            game_id=game_id,  # e.g. "prometheus" for Overwatch
             game_title=game_title,
             in_game_status=None,
             full_status=None
