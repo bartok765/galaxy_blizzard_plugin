@@ -1,17 +1,22 @@
 import asyncio
 import struct
 import functools
-import logging as log
+import logging
 from fnvhash import fnv1a_32
 from requests import utils
 from datetime import datetime
 
 from galaxy.api.errors import BackendError
+from google.protobuf.message import Message
+from google.protobuf.text_format import MessageToString
 
 from bnet import (
     connection_service_pb2, rpc_pb2, friends_service_pb2, authentication_service_pb2,
     presence_service_pb2, presence_types_pb2
 )
+
+log = logging.getLogger(__name__)
+log.setLevel = logging.INFO
 
 
 class BNetClient:
@@ -105,6 +110,9 @@ class BNetClient:
     def _set_backend_server_host(self, region):
         self._BACKEND_SERVER_HOST = "{}.actual.battle.net".format(region)
 
+    def _log_received_message(self, name, header, message: Message):
+        log.debug(f"fetched {name} token: {header.token} body: {MessageToString(message, as_one_line=True)}")
+
     async def _send_message(self, service_name, method_id, body, callback=None):
         if self.writer is None:
             raise BackendError("connection to battle.net is closed")
@@ -139,7 +147,8 @@ class BNetClient:
 
         response = presence_service_pb2.QueryResponse()
         response.ParseFromString(body)
-        # log.debug(f"fetched presence:query_response token: {header.token} body: {response}")
+
+        self._log_received_message("presence:query_response", header, response)
 
         game_account_info = {}
         for f in response.field:
@@ -181,7 +190,8 @@ class BNetClient:
 
         response = presence_service_pb2.QueryResponse()
         response.ParseFromString(body)
-        # log.debug(f"fetched presence:query_response token: {header.token} body: {response}")
+
+        self._log_received_message("presence:query_response", header, response)
 
         account_info = {}
         for f in response.field:
@@ -215,8 +225,8 @@ class BNetClient:
 
         response = friends_service_pb2.SubscribeToFriendsResponse()
         response.ParseFromString(body)
-        # log.debug(f"fetched friends:subscribe_to_friends_response token: {header.token} body: {response}")
-        # log.debug(f"fetched friends:subscribe_to_friends_response token: {header.token}")
+
+        self._log_received_message("friends:subscribe_to_friends_response", header, response)
 
         future.set_result(response.friends)
 
@@ -230,7 +240,8 @@ class BNetClient:
 
         response = authentication_service_pb2.LogonResult()
         response.ParseFromString(body)
-        # log.debug(f"fetched authentication:logon_result token: {header.token} body: {response}")
+
+        self._log_received_message("authentication:logon_result", header, response)
 
         self._account_id = response.account
         self._game_account_id = response.game_account[0]
@@ -240,7 +251,8 @@ class BNetClient:
     async def _on_connection__echo_request(self, header, body):
         request = connection_service_pb2.EchoRequest()
         request.ParseFromString(body)
-        log.debug(f"fetched connection:echo_request token: {header.token} body: {request}")
+
+        self._log_received_message("connection:echo_request", header, request)
 
         response = connection_service_pb2.EchoResponse()
         response.time = request.time
@@ -251,7 +263,8 @@ class BNetClient:
     async def _on_connection__disconnect_notification(self, header, body):
         response = connection_service_pb2.DisconnectNotification()
         response.ParseFromString(body)
-        log.debug(f"fetched connection:disconnect_notification token: {header.token} body: {response}")
+
+        self._log_received_message("connection:disconnect_notification", header, response)
 
         # error_code: 3014
 
@@ -260,7 +273,8 @@ class BNetClient:
     async def _on_connection__connect_response(self, header, body):
         response = connection_service_pb2.ConnectResponse()
         response.ParseFromString(body)
-        # log.debug(f"fetched connection:connect_response token: {header.token} body: {response}")
+
+        self._log_received_message("connection:connect_response", header, response)
 
         self._imported_services_map.update(zip(self._imported_services, response.bind_response.imported_service_id))
 
@@ -307,14 +321,14 @@ class BNetClient:
                 await callback(header, body)
                 del self._token_callbacks[header.token]
             else:
-                log.debug("unexpected response received", str(header))
+                log.warning("unexpected response received", str(header))
 
         # server requesting something from us
         try:
             callback = self._exported_services_map[header.service_id][header.method_id]
             await callback(header, body)
         except Exception as e:
-            log.debug("failed to run service for received header", str(header), e)
+            log.warning("failed to run service for received header", str(header), e)
 
     async def logon(self):
         request = authentication_service_pb2.LogonRequest()
