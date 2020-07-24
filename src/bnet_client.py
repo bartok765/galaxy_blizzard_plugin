@@ -294,10 +294,7 @@ class BNetClient:
 
     async def _watch_receive_message(self):
         while True:
-            try:
-                await self._receive_message()
-            except Exception as e:
-                log.error(f'battle.net socket error: {repr(e)}')
+            await self._receive_message()
 
     async def _receive_message(self):
         if self.reader is None:
@@ -377,6 +374,8 @@ class BNetClient:
         log.info("disconnected from battle.net")
         if self.writer:
             self.writer.close()
+        self.writer = None
+        self.reader = None
         self.authenticated = False
 
     async def fetch_friend_battle_tag(self, entity_id, future: 'asyncio.Future[AccountInfo]'):
