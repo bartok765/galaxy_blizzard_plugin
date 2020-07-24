@@ -1,18 +1,21 @@
 import asyncio
-import struct
 import functools
 import logging
-from fnvhash import fnv1a_32
-from requests import utils
-from datetime import datetime
+import struct
+from typing import List
 
+from fnvhash import fnv1a_32
 from galaxy.api.errors import BackendError
 from google.protobuf.message import Message
 from google.protobuf.text_format import MessageToString
+from requests import utils
 
 from bnet import (
-    connection_service_pb2, rpc_pb2, friends_service_pb2, authentication_service_pb2,
-    presence_service_pb2, presence_types_pb2
+    authentication_service_pb2,
+    connection_service_pb2,
+    friends_service_pb2, friends_types_pb2,
+    presence_service_pb2, presence_types_pb2,
+    rpc_pb2,
 )
 
 log = logging.getLogger(__name__)
@@ -98,6 +101,67 @@ class BNetClient:
         def __init__(self, callback):
             self.callback = callback
 
+    class AccountInfo:
+        def __init__(self, fields: List[presence_types_pb2.Field]):
+            self.battle_tag = None
+            self.full_name = None
+            self.game_account_ids = []
+
+            for f in fields:
+                if f.key.group != 1:
+                    continue
+
+                # LIST OF POSSIBLE KEYS / VALUES:
+                # key.field = 1 (full_name: value.string_value) only works for RealId friends, others will FAIL WITH ERROR, return e.g. "Firstname Lastname"
+                # key.field = 2 (???: value.string_value) only returns for some friends, returns ""
+                # key.field = 3 (game_account_id: value.entityid_value) only returns for online friends, returns e.g. high: 144115197778542960 low: 116591225
+                # > can be returned multiple times for different apps/games, where user is logged in (e.g. PC, Mobile etc.)
+                # key.field = 4 (battle_tag: value.string_value) returns e.g. "Username#1234"
+                # key.field = 5 (???: value.int_value) only returns for some friends, returns e.g. 1591116989396775 (microseconds timestamp)
+                # key.field = 6 (???: value.int_value) returns e.g. 1592215097253865 (microseconds timestamp)
+                # key.field = 7 (???: value.bool_value) returns false
+                # key.field = 8 (???: value.int_value) return e.g. 1583607638026991 (microseconds timestamp)
+                # key.field = 9 FAILS WITH ERROR
+                # key.field = 10 FAILS WITH ERROR
+                # key.field = 11 (???: value.bool_value) returns false
+
+                if f.key.field == 1:
+                    self.full_name = f.value.string_value.encode('utf-8')  # e.g. "Firstname Lastname"
+                if f.key.field == 3:
+                    self.game_account_ids.append(f.value.entityid_value)  # e.g. high: 144115197778542960 low: 131237370
+                if f.key.field == 4:
+                    self.battle_tag = f.value.string_value  # e.g. "Username#1234"
+
+    class GameAccountInfo:
+        def __init__(self, fields: List[presence_types_pb2.Field]):
+            self.program = None
+            self.rich_presence = None
+            self.is_away = None
+
+            for f in fields:
+                if f.key.group != 2:
+                    continue
+
+                # LIST OF POSSIBLE KEYS / VALUES:
+                # key.field = 1 (is online: value.bool_value) returns true
+                # key.field = 2 (???: value.int_value) only returns for certain games (S2, ...), returns e.g. 0
+                # key.field = 3 (program: value.fourcc_value) returns e.g. "BSAp", "Pro" (for Overwatch)
+                # key.field = 4 (???: value.int_value) returns e.g. 1584194739362351 (microseconds timestamp)
+                # key.field = 5 (battle_tag: value.string_value) returns e.g. "Username#1234"
+                # key.field = 6 FAILS WITH ERROR
+                # key.field = 7 (account_id: value.entityid_value) returns e.g. high: 72057594037927936 low: 101974425
+                # key.field = 8 (rich_presence: value.message_value) only returns when user is in-game, returns e.g. "\rorP\000\025aorp\030\025" or ""\r2S\000\000\025SRPR\030\000""
+                # key.field = 9 (???: value.int_value) returns e.g. 1584228809551117 (microseconds timestamp)
+                # key.field = 10 (is_away: value.bool_value) returns true/false
+                # key.field = 11 (???: value.int_value) returns e.g. 1595601904845128 (microseconds timestamp)
+
+                if f.key.field == 3:
+                    self.program = f.value.fourcc_value  # e.g. "App", "BSAp" or "Pro" (for Overwatch)
+                if f.key.field == 8:
+                    self.rich_presence = presence_types_pb2.RichPresence().ParseFromString(f.value.message_value)  # e.g. "\rorP\000\025aorp\030\025"
+                if f.key.field == 10:
+                    self.is_away = f.value.bool_value
+
     def _next_object(self):
         self._object += 1
         return self._object
@@ -139,10 +203,10 @@ class BNetClient:
         self.writer.write(body.SerializeToString())
         await self.writer.drain()
 
-    async def _on_presence__query_game_account(self, future: asyncio.Future, header, body):
+    async def _on_presence__query_game_account(self, future: 'asyncio.Future[GameAccountInfo]', header, body):
         if not body:
             log.warning("failed presence:query_response")
-            future.set_result({})
+            future.set_result(self.GameAccountInfo([]))
             return
 
         response = presence_service_pb2.QueryResponse()
@@ -150,42 +214,12 @@ class BNetClient:
 
         self._log_received_message("presence:query_response", header, response)
 
-        game_account_info = {}
-        for f in response.field:
-            if f.key.group != 2:
-                continue
+        future.set_result(self.GameAccountInfo(response.field))
 
-            if f.key.field == 1:
-                game_account_info["is_online"] = f.value.bool_value
-            elif f.key.field == 2:
-                game_account_info["is_busy"] = f.value.bool_value
-            elif f.key.field == 3:
-                game_account_info["program"] = f.value.fourcc_value  # e.g. "App", "BSAp" or "Pro" (for Overwatch)
-            elif f.key.field == 4:
-                game_account_info["last_online"] = datetime.fromtimestamp(f.value.int_value / 1000 / 1000)  # e.g. 1584194739362351 (microseconds timestamp)
-            elif f.key.field == 5:
-                continue
-            elif f.key.field == 6:
-                continue
-            elif f.key.field == 7:
-                continue
-            elif f.key.field == 8:
-                rich_presence = presence_types_pb2.RichPresence()
-                rich_presence.ParseFromString(f.value.message_value)  # e.g. "\rorP\000\025aorp\030\025"
-                game_account_info["rich_presence"] = rich_presence
-            elif f.key.field == 9:
-                continue
-            elif f.key.field == 10:
-                game_account_info["is_away"] = f.value.bool_value
-            elif f.key.field == 11:
-                continue
-
-        future.set_result(game_account_info)
-
-    async def _on_presence__query_account(self, future: asyncio.Future, header, body):
+    async def _on_presence__query_account(self, future: 'asyncio.Future[AccountInfo]', header, body):
         if not body:
             log.error("failed presence:query_response")
-            future.set_result({})
+            future.set_result(self.AccountInfo([]))
             return
 
         response = presence_service_pb2.QueryResponse()
@@ -193,31 +227,9 @@ class BNetClient:
 
         self._log_received_message("presence:query_response", header, response)
 
-        account_info = {}
-        for f in response.field:
-            if f.key.group != 1:
-                continue
+        future.set_result(self.AccountInfo(response.field))
 
-            if f.key.field == 1:
-                account_info["full_name"] = f.value.string_value.encode('utf-8')  # e.g. "Firstname Lastname"
-            elif f.key.field == 3:
-                if "game_accounts" not in account_info:
-                    account_info["game_accounts"] = []
-                account_info["game_accounts"].append({"id": f.value.entityid_value})  # e.g. high: 144115197778542960 low: 131237370
-            elif f.key.field == 4:
-                account_info["battle_tag"] = f.value.string_value  # e.g. "Username#1234"
-            elif f.key.field == 6:
-                account_info["last_online"] = datetime.fromtimestamp(f.value.int_value/1000/1000)  # e.g. 1584194739362351 (microseconds timestamp)
-            elif f.key.field == 7:
-                account_info["is_away"] = f.value.bool_value
-            elif f.key.field == 8:
-                account_info["away_time"] = f.value.int_value  # e.g. 1583607638026991
-            elif f.key.field == 11:
-                account_info["is_busy"] = f.value.bool_value
-
-        future.set_result(account_info)
-
-    async def _on_friends__subscribe_to_friends(self, future: asyncio.Future, header, body):
+    async def _on_friends__subscribe_to_friends(self, future: 'asyncio.Future[List[friends_types_pb2.Friend]]', header, body):
         if not body:
             log.error("failed friends:subscribe_to_friends_response")
             future.set_result([])
@@ -332,8 +344,8 @@ class BNetClient:
 
     async def logon(self):
         request = authentication_service_pb2.LogonRequest()
-        # request.program = "App"
-        request.program = "BSAp"  # login in as mobile
+        # request.program = "App"  # Battle.net Desktop App, using this would logout of running Battle.net App
+        request.program = "BSAp"  # Battle.net Mobile App
         request.platform = "Win"
         request.locale = "enUS"
         request.version = "9166"
@@ -367,65 +379,43 @@ class BNetClient:
             self.writer.close()
         self.authenticated = False
 
-    async def fetch_friend_battle_tag(self, entity_id, future: asyncio.Future):
+    async def fetch_friend_battle_tag(self, entity_id, future: 'asyncio.Future[AccountInfo]'):
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
-
-        key = request.key.add()
-        key.program = 0x424e
-        key.group = 1  # account
-        key.field = 4  # battle_tag
-
-        await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, future))
-
-    async def fetch_friend_presence_account_details(self, account_id, future: asyncio.Future):
-        request = presence_service_pb2.QueryRequest()
-        request.entity_id.high = account_id.high
-        request.entity_id.low = account_id.low
-        for i in [3, 4]:
+        for i in [4]:  # for possible values see self.AccountInfo
             key = request.key.add()
-            key.program = 0x424e
+            key.program = 0x424e  # hex code for "BN"
             key.group = 1  # account
             key.field = i
 
-        # key.field = 1 (full_name) only works for RealId friends, others will return with header.status = 3 and empty body
-        # key.field = 3 (game_account) works for all friends, but is only returned when friend is not offline!
-        # > can be returned multiple times!
-        # > seems to be for different programs/games, where user is logged in (e.g. PC, Mobile etc.)
-        # key.field = 4 (battle_tag) works for all friends, returns e.g. "Username#1234"
-        # key.field = 6 (last_online) works for all friends, returns e.g. 1592215097253865
-        # key.field = 7 (is_away) always returns false
-        # key.field = 8 (away_time) return e.g. 1583607638026991
-        # key.field = 11 (is_busy) always returns false
+        await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, future))
+
+    async def fetch_friend_presence_account_details(self, entity_id, future: 'asyncio.Future[AccountInfo]'):
+        request = presence_service_pb2.QueryRequest()
+        request.entity_id.high = entity_id.high
+        request.entity_id.low = entity_id.low
+        for i in [3]:  # for possible values see self.AccountInfo
+            key = request.key.add()
+            key.program = 0x424e  # hex code for "BN"
+            key.group = 1  # account
+            key.field = i
 
         await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, future))
 
-    async def fetch_friend_presence_game_account_details(self, game_account_id, future: asyncio.Future):
+    async def fetch_friend_presence_game_account_details(self, entity_id, future: 'asyncio.Future[GameAccountInfo]'):
         request = presence_service_pb2.QueryRequest()
-        request.entity_id.high = game_account_id.high
-        request.entity_id.low = game_account_id.low
-        for i in [1, 2, 3, 10]:  # for i in [1, 2, 3, 8, 10]:  # with rich_presence
+        request.entity_id.high = entity_id.high
+        request.entity_id.low = entity_id.low
+        for i in [3, 10]:  # for possible values see self.GameAccountInfo
             key = request.key.add()
-            key.program = 0x424e
-            key.group = 2  # 2 game account
+            key.program = 0x424e  # hex code for "BN"
+            key.group = 2  # game account
             key.field = i
-
-        # key.field = 1 (is online) works for all not-offline friends and returns true
-        # key.field = 2 (is_busy???)
-        # key.field = 3 (program_id) works for all not-offline friends and returns e.g. "BSAp", "Pro" (for Overwatch)
-        # key.field = 4 (last_online???) returns e.g. 1584194739362351
-        # key.field = 5 (battle_tag???)
-        # key.field = 6 (account_name???)
-        # key.field = 7 (account_id???) returns e.g. high: 72057594037927936 low: 101974425
-        # key.field = 8 (rich_presence) only returns when user is in-game, e.g. "\rorP\000\025aorp\030\025"
-        # key.field = 9 (???) returns e.g. 1584228809551117
-        # key.field = 10 (is_away) works for all not-offline friends and returns true/false
-        # key.field = 11 (last_online???)
 
         await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, future))
 
-    async def fetch_friends_list(self, future: asyncio.Future):
+    async def fetch_friends_list(self, future: 'asyncio.Future[List[friends_types_pb2.Friend]]'):
         request = friends_service_pb2.SubscribeToFriendsRequest()
         request.object_id = self._next_object()
 

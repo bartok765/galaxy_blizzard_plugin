@@ -276,7 +276,7 @@ class BNetPlugin(Plugin):
 
         friends_list = await self.social_features.get_friends()
 
-        return [UserInfo(user_id=friend.id.low, user_name=friend.battle_tag, avatar_url=None, profile_url=None) for friend_id, friend in friends_list.items()]
+        return [UserInfo(user_id=friend.uid, user_name=friend.battle_tag, avatar_url=None, profile_url=None) for friend_id, friend in friends_list.items()]
 
     # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
     #     return None
@@ -285,14 +285,13 @@ class BNetPlugin(Plugin):
         if not self.bnet_client.authenticated:
             raise BackendError("not authenticated with battle.net")
 
-        friend_presence = await self.social_features.get_friend_presence(user_id)
+        friend_presences = await self.social_features.get_friend_presences(user_id)
 
-        if friend_presence is None or "game_accounts" not in friend_presence:
+        if not friend_presences:
             return UserPresence(presence_state=PresenceState.Offline)
 
-        # collect relevant info from all game_accounts (program, state)
-        _programs = [game_account.get('program') for game_account in friend_presence["game_accounts"]]
-        _away_states = [game_account.get('is_away', False) for game_account in friend_presence["game_accounts"]]
+        _programs = [presence.program for presence in friend_presences]
+        _away_states = [presence.is_away for presence in friend_presences]
 
         game_id = None
         game_title = None
