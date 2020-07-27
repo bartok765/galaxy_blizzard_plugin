@@ -13,6 +13,7 @@ from requests import utils
 from bnet import (
     authentication_service_pb2,
     connection_service_pb2,
+    entity_pb2,
     friends_service_pb2, friends_types_pb2,
     presence_service_pb2, presence_types_pb2,
     rpc_pb2,
@@ -102,64 +103,74 @@ class BNetClient:
             self.callback = callback
 
     class AccountInfo:
+        GROUP = 1
+        FIELD_FULL_NAME = 1
+        FIELD_GAME_ACCOUNT_ID = 3
+        FIELD_BATTLE_TAG = 4
+
         def __init__(self, fields: List[presence_types_pb2.Field]):
             self.battle_tag = None
             self.full_name = None
-            self.game_account_ids = []
+            self.game_account_ids: List[entity_pb2.EntityId] = []
 
             for f in fields:
-                if f.key.group != 1:
+                if f.key.group != self.GROUP:
                     continue
 
                 # LIST OF POSSIBLE KEYS / VALUES:
-                # key.field = 1 (full_name: value.string_value) only works for RealId friends, others will FAIL WITH ERROR, return e.g. "Firstname Lastname"
-                # key.field = 2 (???: value.string_value) only returns for some friends, returns ""
-                # key.field = 3 (game_account_id: value.entityid_value) only returns for online friends, returns e.g. high: 144115197778542960 low: 116591225
-                # > can be returned multiple times for different apps/games, where user is logged in (e.g. PC, Mobile etc.)
-                # key.field = 4 (battle_tag: value.string_value) returns e.g. "Username#1234"
-                # key.field = 5 (???: value.int_value) only returns for some friends, returns e.g. 1591116989396775 (microseconds timestamp)
-                # key.field = 6 (???: value.int_value) returns e.g. 1592215097253865 (microseconds timestamp)
-                # key.field = 7 (???: value.bool_value) returns false
-                # key.field = 8 (???: value.int_value) return e.g. 1583607638026991 (microseconds timestamp)
-                # key.field = 9 FAILS WITH ERROR
-                # key.field = 10 FAILS WITH ERROR
-                # key.field = 11 (???: value.bool_value) returns false
+                # 1: full_name (string_value) only works for RealId friends, others will FAIL WITH ERROR, return e.g. "Firstname Lastname"
+                # 2: ??? (string_value) only returns for some friends, returns ""
+                # 3: game_account_id (entityid_value) only returns for online friends, returns e.g. high: 144115197778542960 low: 116591225
+                #    > can be returned multiple times for different apps/games, where user is logged in (e.g. PC, Mobile etc.)
+                # 4: battle_tag (string_value) returns e.g. "Username#1234"
+                # 5: ??? (int_value) only returns for some friends, returns e.g. 1591116989396775 (microseconds timestamp)
+                # 6: ??? (int_value) returns e.g. 1592215097253865 (microseconds timestamp)
+                # 7: ??? (bool_value) returns false
+                # 8: ??? (int_value) return e.g. 1583607638026991 (microseconds timestamp)
+                # 9: FAILS WITH ERROR
+                # 10: FAILS WITH ERROR
+                # 11: ??? (bool_value) returns false
 
-                if f.key.field == 1:
+                if f.key.field == self.FIELD_FULL_NAME:
                     self.full_name = f.value.string_value.encode('utf-8')  # e.g. "Firstname Lastname"
-                if f.key.field == 3:
+                if f.key.field == self.FIELD_GAME_ACCOUNT_ID:
                     self.game_account_ids.append(f.value.entityid_value)  # e.g. high: 144115197778542960 low: 131237370
-                if f.key.field == 4:
+                if f.key.field == self.FIELD_BATTLE_TAG:
                     self.battle_tag = f.value.string_value  # e.g. "Username#1234"
 
     class GameAccountInfo:
+        GROUP = 2
+        FIELD_PROGRAM = 3
+        FIELD_RICH_PRESENCE = 8
+        FIELD_IS_AWAY = 10
+
         def __init__(self, fields: List[presence_types_pb2.Field]):
             self.program = None
             self.rich_presence = None
             self.is_away = None
 
             for f in fields:
-                if f.key.group != 2:
+                if f.key.group != self.GROUP:
                     continue
 
                 # LIST OF POSSIBLE KEYS / VALUES:
-                # key.field = 1 (is online: value.bool_value) returns true
-                # key.field = 2 (???: value.int_value) only returns for certain games (S2, ...), returns e.g. 0
-                # key.field = 3 (program: value.fourcc_value) returns e.g. "BSAp", "Pro" (for Overwatch)
-                # key.field = 4 (???: value.int_value) returns e.g. 1584194739362351 (microseconds timestamp)
-                # key.field = 5 (battle_tag: value.string_value) returns e.g. "Username#1234"
-                # key.field = 6 FAILS WITH ERROR
-                # key.field = 7 (account_id: value.entityid_value) returns e.g. high: 72057594037927936 low: 101974425
-                # key.field = 8 (rich_presence: value.message_value) only returns when user is in-game, returns e.g. "\rorP\000\025aorp\030\025" or ""\r2S\000\000\025SRPR\030\000""
-                # key.field = 9 (???: value.int_value) returns e.g. 1584228809551117 (microseconds timestamp)
-                # key.field = 10 (is_away: value.bool_value) returns true/false
-                # key.field = 11 (???: value.int_value) returns e.g. 1595601904845128 (microseconds timestamp)
+                # 1: is online (bool_value) returns true
+                # 2: ??? (int_value) only returns for certain games (S2, ...), returns e.g. 0
+                # 3: program (fourcc_value) returns e.g. "BSAp", "Pro" (for Overwatch)
+                # 4: ??? (int_value) returns e.g. 1584194739362351 (microseconds timestamp)
+                # 5: battle_tag (string_value) returns e.g. "Username#1234"
+                # 6: AILS WITH ERROR
+                # 7: account_id (entityid_value) returns e.g. high: 72057594037927936 low: 101974425
+                # 8: rich_presence (message_value) only returns when user is in-game, returns e.g. "\rorP\000\025aorp\030\025" or ""\r2S\000\000\025SRPR\030\000""
+                # 9: ??? (int_value) returns e.g. 1584228809551117 (microseconds timestamp)
+                # 10: is_away (bool_value) returns true/false
+                # 11: ??? (int_value) returns e.g. 1595601904845128 (microseconds timestamp)
 
-                if f.key.field == 3:
+                if f.key.field == self.FIELD_PROGRAM:
                     self.program = f.value.fourcc_value  # e.g. "App", "BSAp" or "Pro" (for Overwatch)
-                if f.key.field == 8:
+                if f.key.field == self.FIELD_RICH_PRESENCE:
                     self.rich_presence = presence_types_pb2.RichPresence().ParseFromString(f.value.message_value)  # e.g. "\rorP\000\025aorp\030\025"
-                if f.key.field == 10:
+                if f.key.field == self.FIELD_RICH_PRESENCE:
                     self.is_away = f.value.bool_value
 
     def _next_object(self):
@@ -382,10 +393,10 @@ class BNetClient:
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
-        for i in [4]:  # for possible values see self.AccountInfo
+        for i in [self.AccountInfo.FIELD_BATTLE_TAG]:  # for possible values see self.AccountInfo
             key = request.key.add()
             key.program = 0x424e  # hex code for "BN"
-            key.group = 1  # account
+            key.group = self.AccountInfo.GROUP
             key.field = i
 
         await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, future))
@@ -394,10 +405,10 @@ class BNetClient:
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
-        for i in [3]:  # for possible values see self.AccountInfo
+        for i in [self.AccountInfo.FIELD_GAME_ACCOUNT_ID]:  # for possible values see self.AccountInfo
             key = request.key.add()
             key.program = 0x424e  # hex code for "BN"
-            key.group = 1  # account
+            key.group = self.AccountInfo.GROUP
             key.field = i
 
         await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_account, future))
@@ -406,10 +417,10 @@ class BNetClient:
         request = presence_service_pb2.QueryRequest()
         request.entity_id.high = entity_id.high
         request.entity_id.low = entity_id.low
-        for i in [3, 10]:  # for possible values see self.GameAccountInfo
+        for i in [self.GameAccountInfo.FIELD_PROGRAM, self.GameAccountInfo.FIELD_IS_AWAY]:  # for possible values see self.GameAccountInfo
             key = request.key.add()
             key.program = 0x424e  # hex code for "BN"
-            key.group = 2  # game account
+            key.group = self.GameAccountInfo.GROUP
             key.field = i
 
         await self._send_message(self._PRESENCE_SERVICE, 4, request, functools.partial(self._on_presence__query_game_account, future))
