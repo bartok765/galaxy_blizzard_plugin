@@ -41,7 +41,6 @@ class BackendClient(object):
 
     @staticmethod
     def handle_status_code(status_code):
-        logging.debug(f'Status code: {status_code}')
         if status_code == HTTPStatus.UNAUTHORIZED:
             raise AuthenticationRequired()
         if status_code == HTTPStatus.FORBIDDEN:
@@ -70,11 +69,13 @@ class BackendClient(object):
             try:
                 response = await loop.run_in_executor(None, functools.partial(self._authentication_client.session.request, **params))
             except (requests.Timeout, requests.ConnectTimeout, requests.ReadTimeout):
+                logging.debug(f'Request to {url} timed out')
                 raise BackendTimeout()
             except requests.ConnectionError:
                 raise NetworkError
 
             if not ignore_failure:
+                logging.debug(f'Request to {url} responsed with status code {response.status_code}')
                 self.handle_status_code(response.status_code)
 
             if json:
