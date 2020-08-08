@@ -21,7 +21,7 @@ class AuthenticatedHttpClient(object):
         self._region = None
         self.session = None
         self.creds = None
-        self.timeout = 20.0
+        self.timeout = 40.0
         self.attempted_to_set_battle_tag = None
         self.auth_data = None
 
