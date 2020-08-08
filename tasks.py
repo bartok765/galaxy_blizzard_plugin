@@ -16,7 +16,7 @@ if sys.platform == 'win32':
     DIST_DIR = os.environ['localappdata'] + '\\GOG.com\\Galaxy\\plugins\\installed'
     PIP_PLATFORM = "win32"
 elif sys.platform == 'darwin':
-    DIST_DIR = os.path.realpath("~/Library/Application Support/GOG.com/Galaxy/plugins/installed")
+    DIST_DIR = os.path.realpath(os.path.expanduser("~/Library/Application Support/GOG.com/Galaxy/plugins/installed"))
     PIP_PLATFORM = "macosx_10_13_x86_64"  # @see https://github.com/FriendsOfGalaxy/galaxy-integrations-updater/blob/master/scripts.py
 
 
