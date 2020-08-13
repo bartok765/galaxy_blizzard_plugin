@@ -1,0 +1,75 @@
+package bnet.protocol.friends;
+import "bnet/attribute.proto";
+import "bnet/entity.proto";
+import "bnet/friends_types.proto";
+import "bnet/invitation_types.proto";
+import "bnet/role.proto";
+
+
+message SubscribeToFriendsRequest {
+	optional EntityId agent_id = 1;
+	required uint64 object_id = 2;
+}
+
+message SubscribeToFriendsResponse {
+	optional uint32 max_friends = 1;
+	optional uint32 max_received_invitations = 2;
+	optional uint32 max_sent_invitations = 3;
+	repeated Role role = 4;
+	repeated Friend friends = 5;
+	repeated invitation.Invitation sent_invitations = 6;
+	repeated invitation.Invitation received_invitations = 7;
+}
+
+message UnsubscribeToFriendsRequest {
+	optional EntityId agent_id = 1;
+	optional uint64 object_id = 2;
+}
+
+message GenericFriendRequest {
+	optional EntityId agent_id = 1;
+	required EntityId target_id = 2;
+}
+
+message GenericFriendResponse {
+	optional Friend target_friend = 1;
+}
+
+message AssignRoleRequest {
+	optional EntityId agent_id = 1;
+	required EntityId target_id = 2;
+	repeated int32 role = 3;
+}
+
+message ViewFriendsRequest {
+	optional EntityId agent_id = 1;
+	required EntityId target_id = 2;
+	repeated uint32 role = 3 [packed = true];
+}
+
+message ViewFriendsResponse {
+	repeated Friend friends = 1;
+}
+
+message UpdateFriendStateRequest {
+	optional EntityId agent_id = 1;
+	required EntityId target_id = 2;
+	repeated attribute.Attribute attribute = 3;
+	optional uint64 attributes_epoch = 4;
+}
+
+message FriendNotification {
+	required Friend target = 1;
+	optional EntityId game_account_id = 2;
+}
+
+message UpdateFriendStateNotification {
+	required Friend changed_friend = 1;
+	optional EntityId game_account_id = 2;
+}
+
+message InvitationNotification {
+	required invitation.Invitation invitation = 1;
+	optional EntityId game_account_id = 2;
+	optional uint32 reason = 3 [default = 0];
+}

@@ -1,0 +1,34 @@
+package bnet.protocol;
+import "bnet/attribute.proto";
+
+
+message Privilege {
+	required string name = 1;
+	required uint32 value = 2;
+}
+
+message RoleSetConfig {
+	repeated Privilege privilege = 1;
+	required RoleSet role_set = 2;
+}
+
+message Role {
+	required uint32 id = 1;
+	required string name = 2;
+	repeated string privilege = 3;
+	repeated uint32 assignable_role = 4 [packed = true];
+	optional bool required = 5 [default = false];
+	optional bool unique = 6 [default = false];
+	optional uint32 relegation_role = 7;
+	repeated attribute.Attribute attribute = 8;
+}
+
+message RoleSet {
+	required string program = 1;
+	required string service = 2;
+	optional string subtype = 3 [default = "default"];
+	repeated Role role = 4;
+	repeated uint32 default_role = 5 [packed = true];
+	optional int32 max_members = 6;
+	repeated attribute.Attribute attribute = 7;
+}

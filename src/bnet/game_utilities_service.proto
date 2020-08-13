@@ -1,0 +1,53 @@
+package bnet.protocol.game_utilities;
+import "bnet/attribute.proto";
+import "bnet/entity.proto";
+import "bnet/game_utilities_types.proto";
+import "bnet/rpc.proto";
+
+
+message ClientRequest {
+	repeated attribute.Attribute attribute = 1;
+	optional ProcessId host = 2;
+	optional EntityId bnet_account_id = 3;
+	optional EntityId game_account_id = 4;
+}
+
+message ClientResponse {
+	repeated attribute.Attribute attribute = 1;
+}
+
+message ServerRequest {
+	repeated attribute.Attribute attribute = 1;
+	required fixed32 program = 2;
+	optional ProcessId host = 3;
+}
+
+message ServerResponse {
+	repeated attribute.Attribute attribute = 1;
+}
+
+message PresenceChannelCreatedRequest {
+	required EntityId id = 1;
+	optional EntityId game_account_id = 3;
+	optional EntityId bnet_account_id = 4;
+	optional ProcessId host = 5;
+}
+
+message GetPlayerVariablesRequest {
+	repeated PlayerVariables player_variables = 1;
+	optional ProcessId host = 2;
+}
+
+message GetPlayerVariablesResponse {
+	repeated PlayerVariables player_variables = 1;
+}
+
+message GameAccountOnlineNotification {
+	required EntityId game_account_id = 1;
+	optional ProcessId host = 2;
+}
+
+message GameAccountOfflineNotification {
+	required EntityId game_account_id = 1;
+	optional ProcessId host = 2;
+}

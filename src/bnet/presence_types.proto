@@ -1,0 +1,42 @@
+package bnet.protocol.presence;
+import "bnet/attribute.proto";
+import "bnet/channel_types.proto";
+import "bnet/entity.proto";
+
+
+message RichPresence {
+	required fixed32 program_id = 1;
+	required fixed32 stream_id = 2;
+	required uint32 index = 3;
+}
+
+message FieldKey {
+	required uint32 program = 1;
+	required uint32 group = 2;
+	required uint32 field = 3;
+	optional uint64 index = 4 [default = 0];
+}
+
+message Field {
+	required FieldKey key = 1;
+	required attribute.Variant value = 2;
+}
+
+message FieldOperation {
+	enum OperationType {
+		SET = 0;
+		CLEAR = 1;
+	}
+
+	required Field field = 1;
+	optional OperationType operation = 2 [default = SET];
+}
+
+message ChannelState {
+	optional EntityId entity_id = 1;
+	repeated FieldOperation field_operation = 2;
+	optional bool healing = 3 [default = false];
+	extend .bnet.protocol.channel.ChannelState {
+		optional ChannelState presence = 101;
+	}
+}

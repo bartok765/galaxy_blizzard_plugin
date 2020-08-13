@@ -1,0 +1,130 @@
+package bnet.protocol.game_master;
+import "bnet/attribute.proto";
+import "bnet/entity.proto";
+import "bnet/game_factory.proto";
+import "bnet/game_master_types.proto";
+import "bnet/server_pool_types.proto";
+
+
+message JoinGameRequest {
+	required GameHandle game_handle = 1;
+	repeated Player player = 2;
+	optional bool advanced_notification = 3 [default = false];
+}
+
+message JoinGameResponse {
+	optional fixed64 request_id = 1;
+	optional bool queued = 2 [default = false];
+	repeated ConnectInfo connect_info = 3;
+}
+
+message ListFactoriesRequest {
+	required attribute.AttributeFilter filter = 1;
+	optional uint32 start_index = 2 [default = 0];
+	optional uint32 max_results = 3 [default = 100];
+}
+
+message ListFactoriesResponse {
+	repeated GameFactoryDescription description = 1;
+	optional uint32 total_results = 2;
+}
+
+message FindGameRequest {
+	repeated Player player = 1;
+	optional fixed64 factory_id = 2;
+	optional GameProperties properties = 3;
+	optional uint64 object_id = 4;
+	optional fixed64 request_id = 5;
+	optional bool advanced_notification = 6 [default = false];
+}
+
+message FindGameResponse {
+	optional fixed64 request_id = 1;
+	optional fixed64 factory_id = 2;
+	optional bool queued = 3 [default = false];
+}
+
+message GameEndedNotification {
+	required GameHandle game_handle = 1;
+	optional uint32 reason = 2 [default = 0];
+}
+
+message PlayerLeftNotification {
+	required GameHandle game_handle = 1;
+	required EntityId member_id = 2;
+	optional uint32 reason = 3 [default = 1];
+}
+
+message RegisterServerRequest {
+	repeated attribute.Attribute attribute = 1;
+	optional server_pool.ServerState state = 2;
+	required fixed32 program_id = 3;
+}
+
+message UnregisterServerRequest {
+}
+
+message RegisterUtilitiesRequest {
+	repeated attribute.Attribute attribute = 1;
+	optional server_pool.ServerState state = 2;
+	required fixed32 program_id = 3;
+}
+
+message UnregisterUtilitiesRequest {
+}
+
+message SubscribeRequest {
+	required uint64 object_id = 1;
+}
+
+message SubscribeResponse {
+	optional uint64 subscription_id = 1;
+}
+
+message UnsubscribeRequest {
+	required uint64 subscription_id = 1;
+}
+
+message ChangeGameRequest {
+	required GameHandle game_handle = 1;
+	optional bool open = 2;
+	repeated attribute.Attribute attribute = 3;
+	optional bool replace = 4 [default = false];
+}
+
+message GetFactoryInfoRequest {
+	required fixed64 factory_id = 1;
+}
+
+message GetFactoryInfoResponse {
+	repeated attribute.Attribute attribute = 1;
+	repeated GameStatsBucket stats_bucket = 2;
+}
+
+message GetGameStatsRequest {
+	required fixed64 factory_id = 1;
+	required attribute.AttributeFilter filter = 2;
+}
+
+message GetGameStatsResponse {
+	repeated GameStatsBucket stats_bucket = 1;
+}
+
+message FactoryUpdateNotification {
+	enum Operation {
+		ADD = 1;
+		REMOVE = 2;
+		CHANGE = 3;
+	}
+
+	required Operation op = 1;
+	required GameFactoryDescription description = 2;
+	optional fixed32 program_id = 3;
+}
+
+message GameFoundNotification {
+	required fixed64 request_id = 1;
+	optional uint32 error_code = 2 [default = 0];
+	optional GameHandle game_handle = 3;
+	repeated ConnectInfo connect_info = 4;
+}

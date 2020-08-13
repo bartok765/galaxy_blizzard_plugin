@@ -1,0 +1,200 @@
+package bnet.protocol.account;
+import "bnet/account_types.proto";
+import "bnet/entity.proto";
+
+
+message GetAccountRequest {
+	optional AccountReference ref = 1;
+	optional bool fetch_all = 10 [default = false];
+	optional bool fetch_blob = 11 [default = false];
+	optional bool fetch_id = 12 [default = false];
+	optional bool fetch_email = 13 [default = false];
+	optional bool fetch_battle_tag = 14 [default = false];
+	optional bool fetch_full_name = 15 [default = false];
+	optional bool fetch_links = 16 [default = false];
+	optional bool fetch_parental_controls = 17 [default = false];
+}
+
+message GetAccountResponse {
+	optional AccountBlob blob = 11;
+	optional AccountId id = 12;
+	repeated string email = 13;
+	optional string battle_tag = 14;
+	optional string full_name = 15;
+	repeated GameAccountLink links = 16;
+	optional ParentalControlInfo parental_control_info = 17;
+}
+
+message CreateGameAccountRequest {
+	optional AccountId account = 1;
+	optional uint32 region = 2;
+	optional fixed32 program = 3;
+	optional uint32 realm_permissions = 4 [default = 1];
+}
+
+message CacheExpireRequest {
+	repeated AccountId account = 1;
+	repeated GameAccountHandle game_account = 2;
+	repeated string email = 3;
+}
+
+message CredentialUpdateRequest {
+	required AccountId account = 1;
+	repeated AccountCredential old_credentials = 2;
+	repeated AccountCredential new_credentials = 3;
+	optional uint32 region = 4;
+}
+
+message CredentialUpdateResponse {
+}
+
+message FlagUpdateRequest {
+	required AccountId account = 1;
+	optional uint32 region = 2;
+	required uint64 flag = 3;
+	required bool active = 4;
+}
+
+message FlagUpdateResponse {
+}
+
+message GetWalletListRequest {
+	required AccountId account_id = 1;
+	optional bool refresh = 2 [default = false];
+}
+
+message GetWalletListResponse {
+	repeated Wallet wallets = 1;
+}
+
+message GetEBalanceRequest {
+	required AccountId account_id = 1;
+	required string currency = 2;
+	optional uint32 currency_home_region = 3;
+}
+
+message GetEBalanceResponse {
+	optional string balance = 1;
+}
+
+message GetEBalanceRestrictionsRequest {
+	optional uint32 currency_home_region = 1;
+}
+
+message GetEBalanceRestrictionsResponse {
+	repeated CurrencyRestriction currency_restrictions = 1;
+}
+
+message SubscriptionUpdateRequest {
+	repeated SubscriberReference ref = 2;
+}
+
+message SubscriptionUpdateResponse {
+	repeated SubscriberReference ref = 1;
+}
+
+message IsIgrAddressRequest {
+	optional string client_address = 1;
+	optional uint32 region = 2;
+}
+
+message AccountServiceRegion {
+	required uint32 id = 1;
+	required string shard = 2;
+}
+
+message AccountServiceConfig {
+	repeated AccountServiceRegion region = 1;
+}
+
+message GetAccountStateRequest {
+	optional EntityId entity_id = 1;
+	optional uint32 program = 2;
+	optional uint32 region = 3;
+	optional AccountFieldOptions options = 10;
+	optional AccountFieldTags tags = 11;
+}
+
+message GetAccountStateResponse {
+	optional AccountState state = 1;
+	optional AccountFieldTags tags = 2;
+}
+
+message GetGameAccountStateRequest {
+	optional EntityId account_id = 1;
+	optional EntityId game_account_id = 2;
+	optional GameAccountFieldOptions options = 10;
+	optional GameAccountFieldTags tags = 11;
+}
+
+message GetGameAccountStateResponse {
+	optional GameAccountState state = 1;
+	optional GameAccountFieldTags tags = 2;
+}
+
+message GetLicensesRequest {
+	optional EntityId target_id = 1;
+	optional bool get_account_licenses = 2;
+	optional bool get_game_account_licenses = 3;
+	optional bool get_dynamic_account_licenses = 4;
+	optional fixed32 program_id = 5;
+	optional bool exclude_unknown_program = 6 [default = false];
+}
+
+message GetLicensesResponse {
+	repeated AccountLicense licenses = 1;
+}
+
+message GetGameSessionInfoRequest {
+	optional EntityId entity_id = 1;
+}
+
+message GetGameSessionInfoResponse {
+	optional GameSessionInfo session_info = 2;
+}
+
+message GetGameTimeRemainingInfoRequest {
+	optional EntityId game_account_id = 1;
+	optional EntityId account_id = 2;
+}
+
+message GetGameTimeRemainingInfoResponse {
+	optional GameTimeRemainingInfo game_time_remaining_info = 1;
+}
+
+message GetCAISInfoRequest {
+	optional EntityId entity_id = 1;
+}
+
+message GetCAISInfoResponse {
+	optional CAIS cais_info = 1;
+}
+
+message ForwardCacheExpireRequest {
+	optional EntityId entity_id = 1;
+}
+
+message AccountStateNotification {
+	optional AccountState state = 1;
+	optional uint64 subscriber_id = 2;
+	optional AccountFieldTags account_tags = 3;
+	optional bool subscription_completed = 4;
+}
+
+message GameAccountStateNotification {
+	optional GameAccountState state = 1;
+	optional uint64 subscriber_id = 2;
+	optional GameAccountFieldTags game_account_tags = 3;
+	optional bool subscription_completed = 4;
+}
+
+message GameAccountNotification {
+	repeated GameAccountList region_delta = 1;
+	optional uint64 subscriber_id = 2;
+	optional AccountFieldTags account_tags = 3;
+}
+
+message GameAccountSessionNotification {
+	optional GameAccountHandle game_account = 1;
+	optional GameSessionUpdateInfo session_info = 2;
+}

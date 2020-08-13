@@ -1,7 +1,8 @@
 ﻿import dataclasses as dc
 import json
+from typing import Optional, List
+
 import requests
-from typing import Optional, Dict, List
 
 
 class DataclassJSONEncoder(json.JSONEncoder):
@@ -53,6 +54,33 @@ class ProductDbInfo(object):
     install_path: str = ''
     version: str = ''
     playable: bool = False
+
+
+@dc.dataclass(frozen=True)
+class EntityId(object):
+    high: int
+    low: int
+
+
+@dc.dataclass
+class Friend(object):
+    uid: str = dc.field(init=False)
+    entity_id: EntityId
+    battle_tag: str
+
+    def __post_init__(self):
+        self.uid = str(self.entity_id.low)
+
+
+@dc.dataclass
+class FriendPresence(object):
+    uid: str = dc.field(init=False)
+    entity_id: EntityId
+    is_away: bool
+    program: str
+
+    def __post_init__(self):
+        self.uid = str(self.entity_id.low)
 
 
 class Singleton(type):

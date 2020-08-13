@@ -9,12 +9,13 @@ import requests.cookies
 import logging as log
 import subprocess
 import time
+import random
 import re
-from typing import Union, List, Dict
+from typing import Any, Union, List, Dict
 
-from galaxy.api.consts import LocalGameState, Platform
+from galaxy.api.consts import LocalGameState, Platform, PresenceState
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, GameTime, LicenseType
+from galaxy.api.types import Achievement, Game, LicenseInfo, LocalGame, UserInfo, UserPresence, GameTime, LicenseType
 from galaxy.api.errors import (
     AuthenticationRequired, BackendTimeout, BackendNotAvailable, BackendError,
     NetworkError, UnknownError, InvalidCredentials, UnknownBackendResponse
@@ -29,6 +30,8 @@ from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGam
 from consts import SYSTEM
 from consts import Platform as pf
 from http_client import AuthenticatedHttpClient
+from bnet_client import BNetClient
+from social import SocialFeatures
 
 
 class BNetPlugin(Plugin):
@@ -37,6 +40,8 @@ class BNetPlugin(Plugin):
         self.local_client = LocalClient(self._update_statuses)
         self.authentication_client = AuthenticatedHttpClient(self)
         self.backend_client = BackendClient(self, self.authentication_client)
+        self.bnet_client = BNetClient(self.authentication_client)
+        self.social_features = SocialFeatures(self.bnet_client)
 
         self.watched_running_games = set()
         self.local_games_called = False
@@ -93,11 +98,6 @@ class BNetPlugin(Plugin):
                 log.debug('Detected uninstalled game')
                 state = LocalGameState.None_
                 self.update_local_game_status(LocalGame(blizz_id, state))
-
-    def log_out(self):
-        if self.backend_client:
-            asyncio.create_task(self.authentication_client.shutdown())
-        self.authentication_client.user_details = None
 
     async def open_battlenet_browser(self):
         url = self.authentication_client.blizzard_battlenet_download_url
@@ -216,14 +216,18 @@ class BNetPlugin(Plugin):
         try:
             if stored_credentials:
                 auth_data = self.authentication_client.process_stored_credentials(stored_credentials)
+
                 try:
+                    await self.bnet_client.connect()
                     await self.authentication_client.create_session()
                     await self.backend_client.refresh_cookies()
                     auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
                 except (BackendNotAvailable, BackendError, NetworkError, UnknownError, BackendTimeout) as e:
                     raise e
-                except Exception:
+                except Exception as e:
+                    log.error(f"authentication exception: {repr(e)}")
                     raise InvalidCredentials()
+
                 if self.authentication_client.validate_auth_status(auth_status):
                     self.authentication_client.user_details = await self.backend_client.get_user_info()
                 return self.authentication_client.parse_user_details()
@@ -245,14 +249,16 @@ class BNetPlugin(Plugin):
         auth_data = await self.authentication_client.get_auth_data_login(cookie_jar, credentials)
 
         try:
+            await self.bnet_client.connect()
             await self.authentication_client.create_session()
             await self.backend_client.refresh_cookies()
+            auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
         except (BackendNotAvailable, BackendError, NetworkError, UnknownError, BackendTimeout) as e:
             raise e
-        except Exception:
+        except Exception as e:
+            log.error(f"authentication exception: {repr(e)}")
             raise InvalidCredentials()
 
-        auth_status = await self.backend_client.validate_access_token(auth_data.access_token)
         if not ("authorities" in auth_status and "IS_AUTHENTICATED_FULLY" in auth_status["authorities"]):
             raise InvalidCredentials()
 
@@ -261,6 +267,50 @@ class BNetPlugin(Plugin):
         self.authentication_client.set_credentials()
 
         return self.authentication_client.parse_battletag()
+
+    async def get_friends(self):
+        if not self.authentication_client.is_authenticated():
+            raise AuthenticationRequired()
+        if not self.bnet_client.authenticated:
+            raise BackendError("not authenticated with battle.net")
+
+        friends_list = await self.social_features.get_friends()
+
+        return [UserInfo(user_id=friend.uid, user_name=friend.battle_tag, avatar_url=None, profile_url=None) for friend_id, friend in friends_list.items()]
+
+    # async def prepare_user_presence_context(self, user_ids: List[str]) -> Any:
+    #     return None
+
+    async def get_user_presence(self, user_id: str, context: Any) -> UserPresence:
+        if not self.bnet_client.authenticated:
+            raise BackendError("not authenticated with battle.net")
+
+        friend_presences = await self.social_features.get_friend_presences(user_id)
+
+        if not friend_presences:
+            return UserPresence(presence_state=PresenceState.Offline)
+
+        _programs = [presence.program for presence in friend_presences]
+        _away_states = [presence.is_away for presence in friend_presences]
+
+        game_id = None
+        game_title = None
+        for game in Blizzard.BATTLENET_GAMES:
+            if game.family in _programs:  # program can be a game family, e.g. "Pro" for Overwatch
+                game_id = game.uid
+                game_title = game.name
+
+        state = PresenceState.Away
+        if False in _away_states:  # if one game_account says is_away = False, than the user is online. yeah.
+            state = PresenceState.Online
+
+        return UserPresence(
+            presence_state=state,
+            game_id=game_id,  # e.g. "prometheus" for Overwatch
+            game_title=game_title,
+            in_game_status=None,
+            full_status=None
+        )
 
     async def get_owned_games(self):
         if not self.authentication_client.is_authenticated():
@@ -392,69 +442,69 @@ class BNetPlugin(Plugin):
                 return int(match.group('h')) * 60 + int(match.group('m'))
         raise UnknownBackendResponse(f'Unknown Overwatch API playtime format: {qp_time}')
 
-    async def _get_wow_achievements(self):
-        achievements = []
-        try:
-            characters_data = await self.backend_client.get_wow_character_data()
-            characters_data = characters_data["characters"]
+    # async def _get_wow_achievements(self):
+    #     achievements = []
+    #     try:
+    #         characters_data = await self.backend_client.get_wow_character_data()
+    #         characters_data = characters_data["characters"]
+    #
+    #         wow_character_data = await asyncio.gather(
+    #             *[
+    #                 self.backend_client.get_wow_character_achievements(character["realm"], character["name"])
+    #                 for character in characters_data
+    #             ],
+    #             return_exceptions=True,
+    #         )
+    #
+    #         for data in wow_character_data:
+    #             if isinstance(data, requests.Timeout) or isinstance(data, requests.ConnectionError):
+    #                 raise data
+    #
+    #         wow_achievement_data = [
+    #             list(
+    #                 zip(
+    #                     data["achievements"]["achievementsCompleted"],
+    #                     data["achievements"]["achievementsCompletedTimestamp"],
+    #                 )
+    #             )
+    #             for data in wow_character_data
+    #             if type(data) is dict
+    #         ]
+    #
+    #         already_in = set()
+    #
+    #         for char_ach in wow_achievement_data:
+    #             for ach in char_ach:
+    #                 if ach[0] not in already_in:
+    #                     achievements.append(Achievement(achievement_id=ach[0], unlock_time=int(ach[1] / 1000)))
+    #                     already_in.add(ach[0])
+    #     except (AccessTokenExpired, BackendError) as e:
+    #         log.exception(str(e))
+    #     with open('wow.json', 'w') as f:
+    #         f.write(json.dumps(achievements, cls=DataclassJSONEncoder))
+    #     return achievements
 
-            wow_character_data = await asyncio.gather(
-                *[
-                    self.backend_client.get_wow_character_achievements(character["realm"], character["name"])
-                    for character in characters_data
-                ],
-                return_exceptions=True,
-            )
-
-            for data in wow_character_data:
-                if isinstance(data, requests.Timeout) or isinstance(data, requests.ConnectionError):
-                    raise data
-
-            wow_achievement_data = [
-                list(
-                    zip(
-                        data["achievements"]["achievementsCompleted"],
-                        data["achievements"]["achievementsCompletedTimestamp"],
-                    )
-                )
-                for data in wow_character_data
-                if type(data) is dict
-            ]
-
-            already_in = set()
-
-            for char_ach in wow_achievement_data:
-                for ach in char_ach:
-                    if ach[0] not in already_in:
-                        achievements.append(Achievement(achievement_id=ach[0], unlock_time=int(ach[1] / 1000)))
-                        already_in.add(ach[0])
-        except (AccessTokenExpired, BackendError) as e:
-            log.exception(str(e))
-        with open('wow.json', 'w') as f:
-            f.write(json.dumps(achievements, cls=DataclassJSONEncoder))
-        return achievements
-
-    async def _get_sc2_achievements(self):
-        account_data = await self.backend_client.get_sc2_player_data(self.authentication_client.user_details["id"])
-
-        # TODO what if more sc2 accounts?
-        assert len(account_data) == 1
-        account_data = account_data[0]
-
-        profile_data = await self.backend_client.get_sc2_profile_data(
-                                                         account_data["regionId"], account_data["realmId"],
-                                                         account_data["profileId"]
-                                                         )
-
-        sc2_achievement_data = [
-            Achievement(achievement_id=achievement["achievementId"], unlock_time=achievement["completionDate"])
-            for achievement in profile_data["earnedAchievements"]
-            if achievement["isComplete"]
-        ]
-
-        with open('sc2.json', 'w') as f:
-            f.write(json.dumps(sc2_achievement_data, cls=DataclassJSONEncoder))
-        return sc2_achievement_data
+    # async def _get_sc2_achievements(self):
+    #     account_data = await self.backend_client.get_sc2_player_data(self.authentication_client.user_details["id"])
+    #
+    #     # TODO what if more sc2 accounts?
+    #     assert len(account_data) == 1
+    #     account_data = account_data[0]
+    #
+    #     profile_data = await self.backend_client.get_sc2_profile_data(
+    #                                                      account_data["regionId"], account_data["realmId"],
+    #                                                      account_data["profileId"]
+    #                                                      )
+    #
+    #     sc2_achievement_data = [
+    #         Achievement(achievement_id=achievement["achievementId"], unlock_time=achievement["completionDate"])
+    #         for achievement in profile_data["earnedAchievements"]
+    #         if achievement["isComplete"]
+    #     ]
+    #
+    #     with open('sc2.json', 'w') as f:
+    #         f.write(json.dumps(sc2_achievement_data, cls=DataclassJSONEncoder))
+    #     return sc2_achievement_data
 
     # async def get_unlocked_achievements(self, game_id):
     #     if not self.website_client.is_authenticated():
@@ -487,6 +537,7 @@ class BNetPlugin(Plugin):
     async def shutdown(self):
         log.info("Plugin shutdown.")
         await self.authentication_client.shutdown()
+        await self.bnet_client.disconnect()
 
 
 def main():

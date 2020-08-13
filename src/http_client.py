@@ -115,8 +115,12 @@ class AuthenticatedHttpClient(object):
         return requests.cookies.cookiejar_from_dict(new_cookies)
 
     def set_credentials(self):
-        self.creds = {"cookie_jar": pickle.dumps(self.auth_data.cookie_jar).hex(), "access_token": self.auth_data.access_token,
-                      "user_details_cache": self.user_details, "region": self.auth_data.region}
+        self.creds = {
+            "cookie_jar": pickle.dumps(self.auth_data.cookie_jar).hex(),
+            "access_token": self.auth_data.access_token,
+            "region": self.auth_data.region,
+            "user_details_cache": self.user_details
+        }
 
     def parse_battletag(self):
         try:

@@ -77,7 +77,7 @@ Build package
 inv build [--output=<output_folder>] [--ziparchive=<zip_package_name.zip>]
 ```
 
-#### Shortcuts:
+### Shortcuts:
 
 Build to local plugins folder
 ```bash
@@ -88,3 +88,17 @@ Build zip package with name indicating current version:
 ```bash
 inv pack
 ```
+
+### Compile new/changed .proto files
+1. Download the [latest protoc binary](https://github.com/protocolbuffers/protobuf/releases/latest) (protoc-*.zip)
+2. Run compiler
+    - Windows:
+```bash
+cd src && dir bnet\protocol\*.proto /s/b > protoc.txt && protoc -I=%CD% --python_out=%CD% @protoc.txt && del protos.txt
+```
+
+Proto source: https://github.com/HearthSim/hsproto/tree/proto2/proto/bnet
+
+### Log files location
+- Windows: `%programdata%\GOG.com\Galaxy\logs\plugin-battlenet-*.log`
+- MacOS: `/Users/Shared/GOG.com/Galaxy/Logs/plugin-battlenet-*.log`

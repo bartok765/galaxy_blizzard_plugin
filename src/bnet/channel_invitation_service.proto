@@ -1,0 +1,112 @@
+package bnet.protocol.channel_invitation;
+import "bnet/channel_invitation_types.proto";
+import "bnet/channel_types.proto";
+import "bnet/entity.proto";
+import "bnet/invitation_types.proto";
+
+
+message AcceptInvitationRequest {
+	optional EntityId agent_id = 1;
+	optional channel.MemberState member_state = 2;
+	required fixed64 invitation_id = 3;
+	required uint64 object_id = 4;
+	optional EntityId channel_id = 5;
+	optional uint32 service_type = 6;
+	optional bool local_subscriber = 7 [default = true];
+}
+
+message AcceptInvitationResponse {
+	required uint64 object_id = 1;
+}
+
+message SubscribeRequest {
+	optional EntityId agent_id = 1;
+	required uint64 object_id = 2;
+}
+
+message SubscribeResponse {
+	repeated InvitationCollection collection = 1;
+	repeated invitation.Invitation received_invitation = 2;
+}
+
+message UnsubscribeRequest {
+	optional EntityId agent_id = 1;
+}
+
+message SuggestInvitationRequest {
+	optional EntityId agent_id = 1;
+	required EntityId channel_id = 2;
+	required EntityId target_id = 3;
+	optional EntityId approval_id = 4;
+	optional Identity agent_identity = 5;
+	optional AccountInfo agent_info = 6;
+}
+
+message RevokeInvitationRequest {
+	optional EntityId agent_id = 1;
+	optional EntityId target_id = 2;
+	required fixed64 invitation_id = 3;
+	required EntityId channel_id = 4;
+}
+
+message HasRoomForInvitationRequest {
+	required uint32 service_type = 1;
+	optional fixed32 program = 2;
+	optional string channel_type = 3 [default = "default"];
+}
+
+message ChannelCountDescription {
+	required uint32 service_type = 1;
+	required fixed32 program = 2;
+	optional string channel_type = 3 [default = "default"];
+	optional EntityId channel_id = 4;
+}
+
+message IncrementChannelCountRequest {
+	required EntityId agent_id = 1;
+	repeated ChannelCountDescription descriptions = 2;
+}
+
+message IncrementChannelCountResponse {
+	repeated uint64 reservation_tokens = 1;
+}
+
+message DecrementChannelCountRequest {
+	required EntityId agent_id = 1;
+	optional EntityId channel_id = 2;
+	optional uint64 reservation_token = 3;
+}
+
+message UpdateChannelCountRequest {
+	required EntityId agent_id = 1;
+	optional uint64 reservation_token = 2;
+	required EntityId channel_id = 3;
+}
+
+message ListChannelCountRequest {
+	required EntityId member_id = 1;
+	required uint32 service_type = 2;
+	optional fixed32 program = 3;
+}
+
+message ChannelCount {
+	optional EntityId channel_id = 1;
+	optional string channel_type = 2 [default = "default"];
+}
+
+message ListChannelCountResponse {
+	repeated ChannelCount channel = 1;
+}
+
+message InvitationAddedNotification {
+	required invitation.Invitation invitation = 1;
+}
+
+message InvitationRemovedNotification {
+	required invitation.Invitation invitation = 1;
+	optional uint32 reason = 2;
+}
+
+message SuggestionAddedNotification {
+	required invitation.Suggestion suggestion = 1;
+}
