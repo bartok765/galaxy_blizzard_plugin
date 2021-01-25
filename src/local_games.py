@@ -28,7 +28,7 @@ class InstalledGame(object):
         self.install_path = install_path
         self.playable = playable
         self.total_to_download = total_to_download
-        self.update_require = self._is_update_require()
+        self.update_required = self._is_update_required()
 
         self.execs = pathfinder.find_executables(self.install_path)
         self._processes = set()
@@ -59,7 +59,7 @@ class InstalledGame(object):
         while self.is_running():
             time.sleep(0.5)
 
-    def _is_update_require(self):
+    def _is_update_required(self):
         return True if not self.playable and self.total_to_download else False
 
 
@@ -181,7 +181,7 @@ class LocalGames():
                     config_game.last_played,
                     db_game.install_path,
                     db_game.playable,
-                    db_game.update_require
+                    db_game.update_required
                 )
             except FileNotFoundError as e:
                 log.warning(str(e) + '. Probably outdated product.db after uninstall. Skipping')
