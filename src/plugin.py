@@ -335,7 +335,7 @@ class BNetPlugin(Plugin):
             log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
             for uid, game in installed_games.items():
-                if game.playable:
+                if game.playable or game.update_require:
                     state = LocalGameState.Installed
                     if uid in running_games:
                         state |= LocalGameState.Running
@@ -379,7 +379,7 @@ class BNetPlugin(Plugin):
         if player_data['private'] == True:
             log.info('Unable to get data as Overwatch profile is private.')
             return None
-        qp_time = player_data['playtime']['quickplay']
+        qp_time = player_data['playtime'].get('quickplay')
         if qp_time is None:  # user has not played quick play
             return 0
         if qp_time.count(':') == 1:  # minutes and seconds
