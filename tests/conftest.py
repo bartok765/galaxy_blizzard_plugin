@@ -127,6 +127,8 @@ def config_parser():
 def local_client_mock(config_parser):
     mock = MagicMock(spec=LocalClient)
     mock.launch_game = AsyncMock()  # just an example of async method mock
+    mock.get_running_games = MagicMock()
+    mock.get_installed_games = MagicMock()
     mock.config_parser = config_parser
     return mock
 
