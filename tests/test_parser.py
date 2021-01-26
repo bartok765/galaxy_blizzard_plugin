@@ -32,18 +32,18 @@ def test_config_parser(config_data):
 
 def test_db_parser(load_database):
     prs = DatabaseParser(load_database)
-    assert prs.products.get('agent') == ProductDbInfo('agent', 'agent', 'C:/ProgramData/Battle.net/Agent', '2.16.3.6610', True)
-    assert prs.products.get('bna') == ProductDbInfo('battle.net', 'bna', 'C:/Program Files (x86)/Battle.net', '1.12.8.10949', True)
-    assert prs.products.get('s1') == ProductDbInfo('s1', 's1', 'C:/Program Files (x86)/StarCraft', '1.22.3.5354', True, 6374316609)
-    assert prs.products.get('d3') == ProductDbInfo('diablo3_plpl', 'd3', 'C:/Program Files (x86)/Diablo III', '2.6.4.55430', True, 16969600983)
+    assert prs.products.get('agent') == ProductDbInfo('agent', 'agent', 'C:/ProgramData/Battle.net/Agent', '2.16.3.6610', True, True)
+    assert prs.products.get('bna') == ProductDbInfo('battle.net', 'bna', 'C:/Program Files (x86)/Battle.net', '1.12.8.10949', True, True)
+    assert prs.products.get('s1') == ProductDbInfo('s1', 's1', 'C:/Program Files (x86)/StarCraft', '1.22.3.5354', True, True, 6374316609)
+    assert prs.products.get('d3') == ProductDbInfo('diablo3_plpl', 'd3', 'C:/Program Files (x86)/Diablo III', '2.6.4.55430', True, True, 16969600983)
 
 
 def test_db_parser2(another_database):
     parser = DatabaseParser(another_database)
-    assert parser.products.get('s1') == ProductDbInfo('s1', 's1', 'D:/bnet/StarCraft', '1.22.3.5354', True, 6510208360)
+    assert parser.products.get('s1') == ProductDbInfo('s1', 's1', 'D:/bnet/StarCraft', '1.22.3.5354', True, True, 6510208360)
 
 
 def test_db_parser3_games_under_installation(db_under_installation):
     prs = DatabaseParser(db_under_installation)
-    assert prs.products.get('s1') == ProductDbInfo('s1', 's1', 'C:/Program Files (x86)/StarCraft', '', False, 0)
-    assert prs.products.get('hero') == ProductDbInfo('heroes', 'hero', 'C:/Program Files (x86)/Heroes of the Storm', '2.43.3.72649', True, 13214101560)
+    assert prs.products.get('s1') == ProductDbInfo('s1', 's1', 'C:/Program Files (x86)/StarCraft', '', False, False,  0)
+    assert prs.products.get('hero') == ProductDbInfo('heroes', 'hero', 'C:/Program Files (x86)/Heroes of the Storm', '2.43.3.72649', True, True, 13214101560)
