@@ -53,6 +53,7 @@ class ProductDbInfo(object):
     install_path: str = ''
     version: str = ''
     playable: bool = False
+    installed: bool = False
     total_to_download: float = 0.0
 
 
