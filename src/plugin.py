@@ -335,7 +335,7 @@ class BNetPlugin(Plugin):
             log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
             for uid, game in installed_games.items():
-                if game.playable or game.update_required:
+                if game.playable or game.installed:
                     state = LocalGameState.Installed
                     if uid in running_games:
                         state |= LocalGameState.Running
