@@ -20,16 +20,14 @@ pathfinder = PathFinder(SYSTEM)
 
 class InstalledGame(object):
     def __init__(self, info: BlizzardGame, uninstall_tag: str, version: str, last_played: str, install_path: str,
-                 playable: bool, installed: bool = False, total_to_download: float = 0.0):
+                 playable: bool, installed: bool = False):
         self.info = info
         self.uninstall_tag = uninstall_tag
         self.version = version
         self.last_played = last_played
         self.install_path = install_path
         self.playable = playable
-        self.total_to_download = total_to_download
         self.installed = installed
-        self.update_required = self._is_update_required()
 
         self.execs = pathfinder.find_executables(self.install_path)
         self._processes = set()
@@ -59,9 +57,6 @@ class InstalledGame(object):
     def wait_until_game_stops(self):
         while self.is_running():
             time.sleep(0.5)
-
-    def _is_update_required(self):
-        return True if not self.playable and self.total_to_download else False
 
 
 class LocalGames():
@@ -185,7 +180,6 @@ class LocalGames():
                     db_game.install_path,
                     db_game.playable,
                     db_game.installed,
-                    db_game.total_to_download,
                 )
             except FileNotFoundError as e:
                 log.warning(str(e) + '. Probably outdated product.db after uninstall. Skipping')

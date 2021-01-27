@@ -54,7 +54,6 @@ class ProductDbInfo(object):
     version: str = ''
     playable: bool = False
     installed: bool = False
-    total_to_download: float = 0.0
 
 
 class Singleton(type):

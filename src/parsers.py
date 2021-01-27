@@ -90,7 +90,6 @@ class DatabaseParser(object):
             playable = product_install.cached_product_state.base_product_state.playable
             version = product_install.cached_product_state.base_product_state.current_version_str
             installed = product_install.cached_product_state.base_product_state.installed
-            total_to_download = product_install.cached_product_state.update_progress.total_to_download
 
-            self.products[ngdp_code] = ProductDbInfo(uninstall_tag, ngdp_code, install_path, version, playable, installed, total_to_download)
+            self.products[ngdp_code] = ProductDbInfo(uninstall_tag, ngdp_code, install_path, version, playable, installed)
 
