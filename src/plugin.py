@@ -68,13 +68,13 @@ class BNetPlugin(Plugin):
             prev = previous_games.get(blizz_id, None)
 
             if prev is None:
-                if refr.is_galaxy_installed:
+                if refr.has_galaxy_installed_state:
                     log.debug('Detected playable game')
                     state = LocalGameState.Installed
                 else:
                     log.debug('Game is not installed or installation just begin')
                     state = LocalGameState.None_
-            elif refr.is_galaxy_installed and not prev.is_galaxy_installed:
+            elif refr.has_galaxy_installed_state and not prev.playable:
                 log.debug('Detected playable game')
                 state = LocalGameState.Installed
             elif refr.last_played != prev.last_played:
@@ -335,7 +335,7 @@ class BNetPlugin(Plugin):
             log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
             for uid, game in installed_games.items():
-                if game.playable or game.installed:
+                if game.has_galaxy_installed_state:
                     state = LocalGameState.Installed
                     if uid in running_games:
                         state |= LocalGameState.Running

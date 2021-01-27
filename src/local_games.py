@@ -1,18 +1,14 @@
+import logging as log
+import os
+import subprocess
+import time
+from pathlib import Path
 from threading import Thread, Lock
 
-import logging as log
-import subprocess
-import os
-from pathlib import Path
-from typing import Optional
-
 from consts import Platform, SYSTEM, WINDOWS_UNINSTALL_LOCATION, LS_REGISTER
-from galaxy.api.consts import LocalGameState
-from psutil import Process, AccessDenied
-
 from definitions import BlizzardGame, ClassicGame, Blizzard
 from pathfinder import PathFinder
-import time
+from psutil import Process, AccessDenied
 
 if SYSTEM == Platform.WINDOWS:
     import winreg
@@ -35,9 +31,8 @@ class InstalledGame(object):
         self._processes = set()
 
     @property
-    def is_galaxy_installed(self) -> bool:
-        if self.playable or self.installed:
-            return True
+    def has_galaxy_installed_state(self) -> bool:
+        return bool(self.playable or self.installed)
 
     def add_process(self, process: Process):
         try:
