@@ -4,8 +4,10 @@ import logging as log
 import subprocess
 import os
 from pathlib import Path
+from typing import Optional
 
 from consts import Platform, SYSTEM, WINDOWS_UNINSTALL_LOCATION, LS_REGISTER
+from galaxy.api.consts import LocalGameState
 from psutil import Process, AccessDenied
 
 from definitions import BlizzardGame, ClassicGame, Blizzard
@@ -31,6 +33,11 @@ class InstalledGame(object):
 
         self.execs = pathfinder.find_executables(self.install_path)
         self._processes = set()
+
+    @property
+    def is_galaxy_installed(self) -> bool:
+        if self.playable or self.installed:
+            return True
 
     def add_process(self, process: Process):
         try:
