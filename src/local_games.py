@@ -32,7 +32,7 @@ class InstalledGame(object):
 
     @property
     def has_galaxy_installed_state(self) -> bool:
-        """If it is true then LocalGameState can be set as Installed"""
+        """Indicates when Play button should be available in Galaxy"""
 
         return self.playable or self.installed
 
