@@ -32,7 +32,9 @@ class InstalledGame(object):
 
     @property
     def has_galaxy_installed_state(self) -> bool:
-        return bool(self.playable or self.installed)
+        """If it is true then LocalGameState can be set as Installed"""
+
+        return self.playable or self.installed
 
     def add_process(self, process: Process):
         try:
