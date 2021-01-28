@@ -74,7 +74,7 @@ class BNetPlugin(Plugin):
                 else:
                     log.debug('Detected not-fully installed game')
                     state = LocalGameState.None_
-            elif refr.has_galaxy_installed_state and not prev.playable:
+            elif refr.has_galaxy_installed_state and not prev.has_galaxy_installed_state:
                 log.debug('Detected playable game')
                 state = LocalGameState.Installed
             elif refr.last_played != prev.last_played:
