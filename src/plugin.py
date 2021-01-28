@@ -68,13 +68,13 @@ class BNetPlugin(Plugin):
             prev = previous_games.get(blizz_id, None)
 
             if prev is None:
-                if refr.playable:
+                if refr.has_galaxy_installed_state:
                     log.debug('Detected playable game')
                     state = LocalGameState.Installed
                 else:
-                    log.debug('Detected installation begin')
+                    log.debug('Detected not-fully installed game')
                     state = LocalGameState.None_
-            elif refr.playable and not prev.playable:
+            elif refr.has_galaxy_installed_state and not prev.has_galaxy_installed_state:
                 log.debug('Detected playable game')
                 state = LocalGameState.Installed
             elif refr.last_played != prev.last_played:
@@ -335,7 +335,7 @@ class BNetPlugin(Plugin):
             log.info(f"Installed games {installed_games.items()}")
             log.info(f"Running games {running_games}")
             for uid, game in installed_games.items():
-                if game.playable:
+                if game.has_galaxy_installed_state:
                     state = LocalGameState.Installed
                     if uid in running_games:
                         state |= LocalGameState.Running
@@ -379,7 +379,7 @@ class BNetPlugin(Plugin):
         if player_data['private'] == True:
             log.info('Unable to get data as Overwatch profile is private.')
             return None
-        qp_time = player_data['playtime']['quickplay']
+        qp_time = player_data['playtime'].get('quickplay')
         if qp_time is None:  # user has not played quick play
             return 0
         if qp_time.count(':') == 1:  # minutes and seconds
