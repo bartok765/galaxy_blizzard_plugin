@@ -5,4 +5,4 @@ pytest-flakes==4.0.0
 pytest-asyncio==0.10.0
 pytest-mock==2.0.0
 pytest-pythonpath==0.7.3
-pip-tools==4.2.0
+pip-tools~=5.5.0  # for "pip>20.1,<20.4"
