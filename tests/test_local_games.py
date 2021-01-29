@@ -1,5 +1,5 @@
 from unittest.mock import Mock, patch, call
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import pytest
 
@@ -97,7 +97,12 @@ class BlizzardGameState(NamedTuple):
         id="game uninstalled"
     ),
 ])
-def test_local_game_installation_state_notification(plugin_mock, prev, refr, new_state):
+def test_local_game_installation_state_notification(
+    plugin_mock,
+    prev: Optional[BlizzardGameState],
+    refr: Optional[BlizzardGameState],
+    new_state: Optional[LocalGameState]
+):
 
     def installed_game(playable: bool, installed: bool):
         with patch('local_games.pathfinder'):
@@ -108,16 +113,16 @@ def test_local_game_installation_state_notification(plugin_mock, prev, refr, new
             )
 
     plugin_mock.update_local_game_status = Mock()
-    game_id = 's1'
-    previous_games = {game_id: installed_game(prev.playable, prev.installed)} if prev else {}
-    refreshed_games = {game_id: installed_game(refr.playable, refr.installed)} if refr else {}
+    GAME_ID = 's1'
+    previous_games = {GAME_ID: installed_game(prev.playable, prev.installed)} if prev else {}
+    refreshed_games = {GAME_ID: installed_game(refr.playable, refr.installed)} if refr else {}
     
     plugin_mock._update_statuses(refreshed_games, previous_games)
 
     if new_state is None:
         plugin_mock.update_local_game_status.assert_not_called()
     else:
-        local_game = LocalGame(game_id, new_state)
+        local_game = LocalGame(GAME_ID, new_state)
         plugin_mock.update_local_game_status.assert_called_once_with(local_game)
 
 
@@ -127,25 +132,26 @@ def test_local_game_installation_state_notification(plugin_mock, prev, refr, new
     pytest.param('11111111', '12222222', LocalGameState.Running | LocalGameState.Installed, id="game started"),
 ])
 def test_local_game_running_state_notification(
-    plugin_mock, prev_last_played, refr_last_played, new_state
+    plugin_mock,
+    prev_last_played: str,
+    refr_last_played: str,
+    new_state: Optional[LocalGameState]
 ):
     # patch side-effects
     plugin_mock._notify_about_game_stop = Mock()
     plugin_mock.create_task = Mock()
 
     plugin_mock.update_local_game_status = Mock()
-    game_id = 's1'
-    prev = Mock(InstalledGame, has_galaxy_installed_state=True, last_played=prev_last_played)
-    refr = Mock(InstalledGame, has_galaxy_installed_state=True, last_played=refr_last_played)
-    previous_games = {game_id: prev}
-    refreshed_games = {game_id: refr}
+    GAME_ID = 's1'
+    previous_games = {GAME_ID: Mock(InstalledGame, has_galaxy_installed_state=True, last_played=prev_last_played)}
+    refreshed_games = {GAME_ID: Mock(InstalledGame, has_galaxy_installed_state=True, last_played=refr_last_played)}
     
     plugin_mock._update_statuses(refreshed_games, previous_games)
 
     if new_state is None:
         plugin_mock.update_local_game_status.assert_not_called()
     else:
-        local_game = LocalGame(game_id, new_state)
+        local_game = LocalGame(GAME_ID, new_state)
         plugin_mock.update_local_game_status.assert_called_once_with(local_game)
 
 
