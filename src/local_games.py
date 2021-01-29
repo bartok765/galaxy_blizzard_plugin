@@ -33,7 +33,6 @@ class InstalledGame(object):
     @property
     def has_galaxy_installed_state(self) -> bool:
         """Indicates when Play button should be available in Galaxy"""
-
         return self.playable or self.installed
 
     def add_process(self, process: Process):

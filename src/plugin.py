@@ -39,11 +39,12 @@ class BNetPlugin(Plugin):
         self.backend_client = BackendClient(self, self.authentication_client)
 
         self.watched_running_games = set()
-        self.local_games_called = False
+    
+    def handshake_complete(self):
+        self.create_task(self.local_client.register_local_data_watcher(), 'local data watcher')
+        self.create_task(self.local_client.register_classic_games_updater(), 'classic games updater')
 
     async def _notify_about_game_stop(self, game, starting_timeout):
-        if not self.local_games_called:
-            return
         id_to_watch = game.info.uid
 
         if id_to_watch in self.watched_running_games:
@@ -62,8 +63,6 @@ class BNetPlugin(Plugin):
             self.watched_running_games.remove(id_to_watch)
 
     def _update_statuses(self, refreshed_games, previous_games):
-        if not self.local_games_called:
-            return
         for blizz_id, refr in refreshed_games.items():
             prev = previous_games.get(blizz_id, None)
 
@@ -73,14 +72,14 @@ class BNetPlugin(Plugin):
                     state = LocalGameState.Installed
                 else:
                     log.debug('Detected not-fully installed game')
-                    state = LocalGameState.None_
+                    continue
             elif refr.has_galaxy_installed_state and not prev.has_galaxy_installed_state:
                 log.debug('Detected playable game')
                 state = LocalGameState.Installed
             elif refr.last_played != prev.last_played:
                 log.debug('Detected launched game')
                 state = LocalGameState.Installed | LocalGameState.Running
-                asyncio.create_task(self._notify_about_game_stop(refr, 5))
+                self.create_task(self._notify_about_game_stop(refr, 5), 'game stop waiter')
             else:
                 continue
 
@@ -174,9 +173,6 @@ class BNetPlugin(Plugin):
                 log.exception(f'Uninstalling game {game_id} failed: {e}')
 
     async def launch_game(self, game_id):
-        if not self.local_games_called:
-            await self.get_local_games()
-
         try:
             game = self.local_client.get_installed_games().get(game_id, None)
             if game is None:
@@ -349,9 +345,6 @@ class BNetPlugin(Plugin):
             log.exception(f"failed to get local games: {str(e)}")
             raise
 
-        finally:
-            self.local_games_called = True
-
     async def get_game_time(self, game_id, context):
         total_time = None
         last_played_time = None
@@ -373,7 +366,7 @@ class BNetPlugin(Plugin):
     async def _get_overwatch_time(self) -> Union[None, int]:
         log.debug("Fetching playtime for Overwatch...")
         player_data = await self.backend_client.get_ow_player_data()
-        if 'message' in player_data:  # user not found... unfortunately no 404 status code is returned :/
+        if 'message' in player_data:  # user not found
             log.error('No Overwatch profile found.')
             return None
         if player_data['private'] == True:
