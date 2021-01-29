@@ -39,6 +39,10 @@ class BNetPlugin(Plugin):
         self.backend_client = BackendClient(self, self.authentication_client)
 
         self.watched_running_games = set()
+    
+    def handshake_complete(self):
+        self.create_task(self.local_client.register_local_data_watcher(), 'local data watcher')
+        self.create_task(self.local_client.register_classic_games_updater(), 'classic games updater')
 
     async def _notify_about_game_stop(self, game, starting_timeout):
         id_to_watch = game.info.uid
@@ -68,14 +72,14 @@ class BNetPlugin(Plugin):
                     state = LocalGameState.Installed
                 else:
                     log.debug('Detected not-fully installed game')
-                    state = LocalGameState.None_
+                    continue
             elif refr.has_galaxy_installed_state and not prev.has_galaxy_installed_state:
                 log.debug('Detected playable game')
                 state = LocalGameState.Installed
             elif refr.last_played != prev.last_played:
                 log.debug('Detected launched game')
                 state = LocalGameState.Installed | LocalGameState.Running
-                asyncio.create_task(self._notify_about_game_stop(refr, 5))
+                self.create_task(self._notify_about_game_stop(refr, 5), 'game stop waiter')
             else:
                 continue
 
