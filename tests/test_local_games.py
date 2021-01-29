@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, call
 from typing import NamedTuple
 
 import pytest
@@ -147,3 +147,29 @@ def test_local_game_running_state_notification(
     else:
         local_game = LocalGame(game_id, new_state)
         plugin_mock.update_local_game_status.assert_called_once_with(local_game)
+
+
+def test_local_game_notification_multiple_games(plugin_mock):
+    # patch side-effects
+    plugin_mock._notify_about_game_stop = Mock()
+    plugin_mock.create_task = Mock()
+
+    plugin_mock.update_local_game_status = Mock()
+    previous_games = {
+        'hs_beta': Mock(InstalledGame, has_galaxy_installed_state=True, last_played=''),
+        's2': Mock(InstalledGame, has_galaxy_installed_state=True, last_played=''),
+    }
+    refreshed_games = {
+        's1': Mock(InstalledGame, has_galaxy_installed_state=True, last_played=''),
+        's2': Mock(InstalledGame, has_galaxy_installed_state=True, last_played='12313111'),
+    }
+
+    plugin_mock._update_statuses(refreshed_games, previous_games)
+
+    plugin_mock.update_local_game_status.assert_has_calls([
+            call(LocalGame('hs_beta', LocalGameState.None_)),
+            call(LocalGame('s1', LocalGameState.Installed)),
+            call(LocalGame('s2', LocalGameState.Installed | LocalGameState.Running)),
+        ],
+        any_order=True
+    )
