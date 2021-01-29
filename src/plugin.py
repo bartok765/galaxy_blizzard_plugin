@@ -335,9 +335,9 @@ class BNetPlugin(Plugin):
                     state = LocalGameState.Installed
                     if uid in running_games:
                         state |= LocalGameState.Running
+                    translated_installed_games.append(LocalGame(uid, state))
                 else:
                     state = LocalGameState.None_
-                translated_installed_games.append(LocalGame(uid, state))
             self.local_client.installed_games_cache = installed_games
             return translated_installed_games
 
