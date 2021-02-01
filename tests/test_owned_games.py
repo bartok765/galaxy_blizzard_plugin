@@ -1,6 +1,4 @@
-import asyncio
 import pytest
-import json
 
 from galaxy.api.types import Game, LicenseInfo
 from galaxy.api.consts import LicenseType

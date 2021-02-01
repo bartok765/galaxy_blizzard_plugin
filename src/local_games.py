@@ -1,16 +1,14 @@
+import logging as log
+import os
+import subprocess
+import time
+from pathlib import Path
 from threading import Thread, Lock
 
-import logging as log
-import subprocess
-import os
-from pathlib import Path
-
 from consts import Platform, SYSTEM, WINDOWS_UNINSTALL_LOCATION, LS_REGISTER
-from psutil import Process, AccessDenied
-
 from definitions import BlizzardGame, ClassicGame, Blizzard
 from pathfinder import PathFinder
-import time
+from psutil import Process, AccessDenied
 
 if SYSTEM == Platform.WINDOWS:
     import winreg
@@ -19,16 +17,23 @@ pathfinder = PathFinder(SYSTEM)
 
 
 class InstalledGame(object):
-    def __init__(self, info: BlizzardGame, uninstall_tag: str, version: str, last_played: str, install_path: str, playable: bool):
+    def __init__(self, info: BlizzardGame, uninstall_tag: str, version: str, last_played: str, install_path: str,
+                 playable: bool, installed: bool = False):
         self.info = info
         self.uninstall_tag = uninstall_tag
         self.version = version
         self.last_played = last_played
         self.install_path = install_path
         self.playable = playable
+        self.installed = installed
 
         self.execs = pathfinder.find_executables(self.install_path)
         self._processes = set()
+
+    @property
+    def has_galaxy_installed_state(self) -> bool:
+        """Indicates when Play button should be available in Galaxy"""
+        return self.playable or self.installed
 
     def add_process(self, process: Process):
         try:
@@ -88,7 +93,8 @@ class LocalGames():
                             '1.0',
                             '',
                             install_path,
-                            True
+                            True,
+                            True,
                         )
             except OSError:
                 return None
@@ -119,7 +125,8 @@ class LocalGames():
                                                     '1.0',
                                                     '',
                                                     '',
-                                                    True
+                                                    True,
+                                                    True,
                                                 )
         self.installed_classic_games_lock.acquire()
         self.installed_classic_games = classic_games
@@ -174,7 +181,8 @@ class LocalGames():
                     db_game.version,
                     config_game.last_played,
                     db_game.install_path,
-                    db_game.playable
+                    db_game.playable,
+                    db_game.installed,
                 )
             except FileNotFoundError as e:
                 log.warning(str(e) + '. Probably outdated product.db after uninstall. Skipping')

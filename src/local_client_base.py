@@ -7,7 +7,6 @@ from time import time
 from pathlib import Path
 from typing import Dict
 
-from definitions import Blizzard
 from process import ProcessProvider
 from consts import Platform, SYSTEM, CONFIG_PATH, AGENT_PATH
 from watcher import FileWatcher
@@ -52,9 +51,6 @@ class BaseLocalClient(abc.ABC):
         self.uninstaller = None
         self.installed_games_cache = self.get_installed_games()
 
-        loop = asyncio.get_event_loop()
-        loop.create_task(self._register_local_data_watcher())
-        loop.create_task(self._register_classic_games_updater())
         self.classic_games_parsing_task = None
 
     @abc.abstractproperty
@@ -207,7 +203,7 @@ class BaseLocalClient(abc.ABC):
                 raise e
         return True
 
-    async def _register_local_data_watcher(self):
+    async def register_local_data_watcher(self):
         parse_local_data_event = asyncio.Event()
         FileWatcher(self.CONFIG_PATH, parse_local_data_event, interval=1)
         FileWatcher(self.PRODUCT_DB_PATH, parse_local_data_event, interval=2.5)
@@ -228,7 +224,7 @@ class BaseLocalClient(abc.ABC):
             self.installed_games_cache = refreshed_games
             parse_local_data_event.clear()
 
-    async def _register_classic_games_updater(self):
+    async def register_classic_games_updater(self):
         tick_count = 0
         while True:
             tick_count += 1
