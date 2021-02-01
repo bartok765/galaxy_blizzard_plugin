@@ -7,7 +7,6 @@ from time import time
 from pathlib import Path
 from typing import Dict
 
-from definitions import Blizzard
 from process import ProcessProvider
 from consts import Platform, SYSTEM, CONFIG_PATH, AGENT_PATH
 from watcher import FileWatcher

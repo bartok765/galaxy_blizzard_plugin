@@ -41,6 +41,14 @@ class BNetPlugin(Plugin):
         self.watched_running_games = set()
     
     def handshake_complete(self):
+        self.create_task(self.__delayed_handshake(), 'delayed handshake')
+
+    async def __delayed_handshake(self):
+        """
+        Adds some minimal delay on Galaxy start before registering local data watchers.
+        Apparently Galaxy may be not ready to receive notifications even after handshake_complete.
+        """
+        await asyncio.sleep(1)
         self.create_task(self.local_client.register_local_data_watcher(), 'local data watcher')
         self.create_task(self.local_client.register_classic_games_updater(), 'classic games updater')
 
