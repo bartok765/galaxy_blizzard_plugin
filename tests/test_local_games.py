@@ -14,20 +14,32 @@ from definitions import Blizzard
     (True, True, LocalGameState.Installed),
     (True, False, LocalGameState.Installed),
     (False, True, LocalGameState.Installed),
-    (False, False, LocalGameState.None_),
 ])
 @pytest.mark.asyncio
-async def test_local_games_states(plugin_mock, installed, playable, expected_state):
-    plugin_mock.local_client.get_running_games.return_value = set()
-    plugin_mock.local_client.get_installed_games.return_value = {
-        "s1": InstalledGame(Blizzard['s1'], 's1', '1.0', '', '/path/', playable, installed),
-    }
+async def test_get_local_games_installed(plugin_mock, installed, playable, expected_state):
     expected_local_games = [
         LocalGame("s1", expected_state)
     ]
 
-    result = await plugin_mock.get_local_games()
-    assert result == expected_local_games
+    plugin_mock.local_client.get_running_games.return_value = set()
+    plugin_mock.local_client.get_installed_games.return_value = {
+        "s1": InstalledGame(Blizzard['s1'], 's1', '1.0', '', '/path/', playable, installed),
+    }
+
+    assert await plugin_mock.get_local_games() == expected_local_games
+
+
+@pytest.mark.asyncio
+async def test_get_local_games_not_installed(plugin_mock):
+    playable, installed = False, False
+    expected_local_games = []
+
+    plugin_mock.local_client.get_running_games.return_value = set()
+    plugin_mock.local_client.get_installed_games.return_value = {
+        "s1": InstalledGame(Blizzard['s1'], 's1', '1.0', '', '/path/', playable, installed),
+    }
+    
+    assert await plugin_mock.get_local_games() == expected_local_games
 
 
 class BlizzardGameState(NamedTuple):
