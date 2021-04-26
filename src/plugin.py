@@ -277,7 +277,8 @@ class BNetPlugin(Plugin):
                 "Good": LicenseType.SinglePurchase,
                 "Inactive": LicenseType.SinglePurchase,
                 "Banned": LicenseType.SinglePurchase,
-                "Free": LicenseType.FreeToPlay
+                "Free": LicenseType.FreeToPlay,
+                "Suspended": LicenseType.SinglePurchase
             }
             games = {}
 
