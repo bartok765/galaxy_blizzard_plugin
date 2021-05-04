@@ -79,7 +79,8 @@ class _Blizzard(object, metaclass=Singleton):
         1447645266: RegionalGameInfo('viper', False),
         1329875278: RegionalGameInfo('odin', True),
         1279351378: RegionalGameInfo('lazarus', False),
-        1514493267: RegionalGameInfo('zeus', False)
+        1514493267: RegionalGameInfo('zeus', False),
+        1381257807: RegionalGameInfo('rtro', False)
     }
     TITLE_ID_MAP_CN = {
         **TITLE_ID_MAP,
@@ -99,7 +100,8 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('viper', 'Call of Duty: Black Ops 4', 'VIPR'),
         BlizzardGame('odin', 'Call of Duty: Modern Warfare', 'ODIN'),
         BlizzardGame('lazarus', 'Call of Duty: MW2 Campaign Remastered', 'LAZR'),
-        BlizzardGame('zeus', 'Call of Duty: Black Ops Cold War', 'ZEUS')
+        BlizzardGame('zeus', 'Call of Duty: Black Ops Cold War', 'ZEUS'),
+        BlizzardGame('rtro', 'Blizzard Arcade Collection', 'RTRO')
     ]
     CLASSIC_GAMES = [
         ClassicGame('d2', 'Diablo® II', 'Diablo II', 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
