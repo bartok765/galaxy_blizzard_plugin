@@ -6,7 +6,7 @@ import pytest
 from galaxy.api.types import LocalGame
 from galaxy.api.consts import LocalGameState
 
-from local_games import InstalledGame, get_directory_size
+from local_games import InstalledGame
 from definitions import Blizzard
 
 
@@ -191,18 +191,3 @@ def test_local_game_notification_multiple_games(plugin_mock):
         ],
         any_order=True
     )
-
-    
-def test_get_directory_size(tmp_path):
-    def create_file(path: str, content: bytes) -> int:
-        path.parent.mkdir(exist_ok=True, parents=True)
-        return path.write_bytes(content)
-
-    expected_size = sum(
-        create_file(p, c) for p, c in [
-            (tmp_path / 'readme.txt', b'Readme content'),
-            (tmp_path / 'assets' / 'de.pack', b'dummy binary file content'),
-            (tmp_path / 'bin' / 'game.exe', b'0\05sdcdsdj9asfsdf\nfaf22e' * 1000000)
-        ]
-    )
-    assert get_directory_size(tmp_path) == expected_size
