@@ -356,7 +356,7 @@ class BNetPlugin(Plugin):
     async def get_local_size(self, game_id: str, context) -> int:
         install_path = self.local_client.installed_games_cache[game_id].install_path
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(get_directory_size(install_path))
+        return await loop.run_in_executor(None, get_directory_size, install_path)
 
     async def get_game_time(self, game_id, context):
         total_time = None
