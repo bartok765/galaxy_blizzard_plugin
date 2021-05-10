@@ -16,6 +16,15 @@ if SYSTEM == Platform.WINDOWS:
 pathfinder = PathFinder(SYSTEM)
 
 
+def get_directory_size(path: str) -> int:
+    """Returns folder size in bytes. CPU-bound."""
+    size = 0
+    for dirpath, _, filenames in os.walk(path):
+        for f in filenames:
+            size += os.stat(os.path.join(dirpath, f)).st_size
+    return size
+
+
 class InstalledGame(object):
     def __init__(self, info: BlizzardGame, uninstall_tag: str, version: str, last_played: str, install_path: str,
                  playable: bool, installed: bool = False):
