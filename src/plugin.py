@@ -4,6 +4,8 @@ import os
 import sys
 import multiprocessing
 import webbrowser
+from collections import defaultdict
+
 import requests
 import requests.cookies
 import logging as log
@@ -272,8 +274,7 @@ class BNetPlugin(Plugin):
             raise AuthenticationRequired()
 
         def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BlizzardGame, LicenseType]:
-            licenses = {
-                None: LicenseType.Unknown,
+            licenses = defaultdict(lambda: LicenseType.Unknown, {
                 "Trial": LicenseType.OtherUserLicense,
                 "Good": LicenseType.SinglePurchase,
                 "Inactive": LicenseType.SinglePurchase,
@@ -281,7 +282,7 @@ class BNetPlugin(Plugin):
                 "Free": LicenseType.FreeToPlay,
                 "Suspended": LicenseType.SinglePurchase,
                 "AccountLock": LicenseType.SinglePurchase
-            }
+            })
             games = {}
 
             for standard_game in standard_games["gameAccounts"]:
@@ -291,12 +292,7 @@ class BNetPlugin(Plugin):
                 except KeyError:
                     log.warning(f"Skipping unknown game with titleId: {title_id}")
                 else:
-                    account_status = standard_game.get("gameAccountStatus")
-                    try:
-                        games[game] = licenses[account_status]
-                    except KeyError:
-                        log.warning(f"Unknown gameAccountStatus: {account_status} for titleId: {title_id}")
-                        games[game] = LicenseType.Unknown
+                    games[game] = licenses[standard_game.get("gameAccountStatus")]
 
             # Add wow classic if retail wow is present in owned games
             wow_license = games.get(Blizzard['wow'])
