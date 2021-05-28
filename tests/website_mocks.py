@@ -59,6 +59,33 @@ def account_details():
 
 
 @pytest.fixture
+def backend_owned_games_with_new_status():
+    return json.loads("""
+{ "gameAccounts": [    
+   {
+        "titleId": 1329875278,
+        "localizedGameName": "Call of Duty: Modern Warfare",
+        "gameAccountName": null,
+        "gameAccountUniqueId": {
+            "gameAccountId": 123,
+            "gameServiceRegionId": 2,
+            "programId": 1329875278
+        },
+        "gameAccountRegion": "EU",
+        "regionalGameFranchiseIconFilename": "cod-mw.svg",
+        "gameAccountStatus": "NEW_STATUS",
+        "lastPlayedDateMillis": 1529516420000,
+        "titleHasSubscriptions": false,
+        "titleHasGameTime": false,
+        "accountSubscriptionView": null,
+        "gameTimeView": null,
+        "displayOrder": 1000
+    }
+]}    
+    """)
+
+
+@pytest.fixture
 def backend_owned_games():
     return json.loads("""
 { "gameAccounts": [

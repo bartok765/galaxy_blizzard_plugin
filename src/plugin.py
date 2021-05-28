@@ -279,7 +279,8 @@ class BNetPlugin(Plugin):
                 "Inactive": LicenseType.SinglePurchase,
                 "Banned": LicenseType.SinglePurchase,
                 "Free": LicenseType.FreeToPlay,
-                "Suspended": LicenseType.SinglePurchase
+                "Suspended": LicenseType.SinglePurchase,
+                "AccountLock": LicenseType.SinglePurchase
             }
             games = {}
 
@@ -290,7 +291,12 @@ class BNetPlugin(Plugin):
                 except KeyError:
                     log.warning(f"Skipping unknown game with titleId: {title_id}")
                 else:
-                    games[game] = licenses[standard_game.get("gameAccountStatus")]
+                    account_status = standard_game.get("gameAccountStatus")
+                    try:
+                        games[game] = licenses[account_status]
+                    except KeyError:
+                        log.warning(f"Unknown gameAccountStatus: {account_status} for titleId: {title_id}")
+                        games[game] = LicenseType.Unknown
 
             # Add wow classic if retail wow is present in owned games
             wow_license = games.get(Blizzard['wow'])
