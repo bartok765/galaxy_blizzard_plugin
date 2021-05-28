@@ -44,8 +44,20 @@ async def test_owned_games(pg, backend_mock, backend_owned_games, backend_no_cla
 
 
 @pytest.mark.asyncio
-async def test_owned_games_with_unknown_licenses(mocker, pg, backend_mock, backend_owned_games, result_owned_games):
+async def test_owned_games_with_unknown_licenses(pg, backend_mock, backend_owned_games, result_owned_games):
     backend_owned_games["gameAccounts"][1]['gameAccountStatus'] = "NEW_STATUS"
+    result_owned_games[1] = Game("odin", "Call of Duty: Modern Warfare", None, LicenseInfo(LicenseType.Unknown))
+    backend_mock.get_owned_games.return_value = backend_owned_games
+    backend_mock.get_owned_classic_games.return_value = {"classicGames": []}
+
+    result = await pg.get_owned_games()
+
+    assert sorted(result, key=lambda x: x.game_id) == sorted(result_owned_games, key=lambda x: x.game_id)
+
+
+@pytest.mark.asyncio
+async def test_owned_games_without_account_status(pg, backend_mock, backend_owned_games, result_owned_games):
+    backend_owned_games["gameAccounts"][1].pop('gameAccountStatus')
     result_owned_games[1] = Game("odin", "Call of Duty: Modern Warfare", None, LicenseInfo(LicenseType.Unknown))
     backend_mock.get_owned_games.return_value = backend_owned_games
     backend_mock.get_owned_classic_games.return_value = {"classicGames": []}
