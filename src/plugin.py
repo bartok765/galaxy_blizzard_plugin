@@ -4,6 +4,8 @@ import os
 import sys
 import multiprocessing
 import webbrowser
+from collections import defaultdict
+
 import requests
 import requests.cookies
 import logging as log
@@ -272,15 +274,15 @@ class BNetPlugin(Plugin):
             raise AuthenticationRequired()
 
         def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BlizzardGame, LicenseType]:
-            licenses = {
-                None: LicenseType.Unknown,
+            licenses = defaultdict(lambda: LicenseType.Unknown, {
                 "Trial": LicenseType.OtherUserLicense,
                 "Good": LicenseType.SinglePurchase,
                 "Inactive": LicenseType.SinglePurchase,
                 "Banned": LicenseType.SinglePurchase,
                 "Free": LicenseType.FreeToPlay,
-                "Suspended": LicenseType.SinglePurchase
-            }
+                "Suspended": LicenseType.SinglePurchase,
+                "AccountLock": LicenseType.SinglePurchase
+            })
             games = {}
 
             for standard_game in standard_games["gameAccounts"]:
