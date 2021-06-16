@@ -4,13 +4,15 @@ import os
 import sys
 import multiprocessing
 import webbrowser
+from collections import defaultdict
+
 import requests
 import requests.cookies
 import logging as log
 import subprocess
 import time
 import re
-from typing import Union, List, Dict
+from typing import Union, Dict
 
 from galaxy.api.consts import LocalGameState, Platform
 from galaxy.api.plugin import Plugin, create_and_run_plugin
@@ -24,6 +26,7 @@ from version import __version__ as version
 from process import ProcessProvider
 from local_client_base import ClientNotInstalledError
 from local_client import LocalClient
+from osutils import get_directory_size
 from backend import BackendClient, AccessTokenExpired
 from definitions import Blizzard, DataclassJSONEncoder, BlizzardGame, ClassicGame
 from consts import SYSTEM
@@ -271,14 +274,15 @@ class BNetPlugin(Plugin):
             raise AuthenticationRequired()
 
         def _parse_battlenet_games(standard_games: dict, cn: bool) -> Dict[BlizzardGame, LicenseType]:
-            licenses = {
-                None: LicenseType.Unknown,
+            licenses = defaultdict(lambda: LicenseType.Unknown, {
                 "Trial": LicenseType.OtherUserLicense,
                 "Good": LicenseType.SinglePurchase,
                 "Inactive": LicenseType.SinglePurchase,
                 "Banned": LicenseType.SinglePurchase,
-                "Free": LicenseType.FreeToPlay
-            }
+                "Free": LicenseType.FreeToPlay,
+                "Suspended": LicenseType.SinglePurchase,
+                "AccountLock": LicenseType.SinglePurchase
+            })
             games = {}
 
             for standard_game in standard_games["gameAccounts"]:
@@ -350,6 +354,11 @@ class BNetPlugin(Plugin):
         except Exception as e:
             log.exception(f"failed to get local games: {str(e)}")
             raise
+    
+    async def get_local_size(self, game_id: str, context) -> int:
+        install_path = self.local_client.installed_games_cache[game_id].install_path
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, get_directory_size, install_path)
 
     async def get_game_time(self, game_id, context):
         total_time = None
