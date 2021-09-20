@@ -88,3 +88,25 @@ Build zip package with name indicating current version:
 ```bash
 inv pack
 ```
+
+## Adding undetected games
+
+As found in definitions.py, Blizzard games must be added to the map of title IDs with their uID, game name, and product family
+
+#### Example
+
+    5272175: RegionalGameInfo('prometheus', False),    // Title ID: 5272175; uID: prometheus; f2p: False
+        
+    ...
+        
+    BlizzardGame('prometheus', 'Overwatch', 'Pro'),    // uID: prometheus; Game Name: Overwatch; Product Family: Pro
+
+Battle.net client logs, which can be found in e.g. %LOCALAPPDATA%\Battle.net\Logs may be helpful in providing this information.
+
+Title ID can be checked for your games by checking the https://account.battle.net/api/games-and-subs endpoint in a browser while logged in to your Battle.net account
+
+Product family can be found in configs ("C:\Users\<user>\AppData\Roaming\Battle.net"), which may also be helpful for uID
+
+Below links may be helpful in determining these data: 
+
+https://wowdev.wiki/TACT#Products
