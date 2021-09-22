@@ -53,11 +53,9 @@ Unfortunately, games' details must currently be hardcoded for detection, and are
 
 Blizzard games must be added to the map of title IDs with their UID, game name, and product family
 
-Example required data (for Overwatch)
-
-| Product family (for launching) | UID (for installation) | Title ID (for ownership) | Game name |
-| :---: | :-----: | :----: | :----: |
-| Pro | prometheus | 5272175 | Overwatch |
+| Type of Blizzard ID: <br><br> Used for:| Product family <br><br> Launching | UID <br><br> Installation | Title ID <br><br> Ownership detection| Game name <br><br> Proper display in Galaxy |
+| :---: | :-----: | :-----: | :----: | :----: |
+| __Example:__ | Pro | prometheus | 5272175 | Overwatch |
 
 #### Game name
 
