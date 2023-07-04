@@ -83,7 +83,8 @@ class _Blizzard(object, metaclass=Singleton):
         1381257807: RegionalGameInfo('rtro', False),
         1464615513: RegionalGameInfo('wlby', False),
         5198665: RegionalGameInfo('osi', False),
-        1179603525: RegionalGameInfo('fore', False)
+        1179603525: RegionalGameInfo('fore', False),
+        4613486: RegionalGameInfo('fenris', False)
     }
     TITLE_ID_MAP_CN = {
         **TITLE_ID_MAP,
@@ -107,7 +108,8 @@ class _Blizzard(object, metaclass=Singleton):
         BlizzardGame('rtro', 'Blizzard Arcade Collection', 'RTRO'),
         BlizzardGame('wlby', 'Crash Bandicoot 4: It\'s About Time', 'WLBY'),
         BlizzardGame('osi', 'Diablo® II: Resurrected', 'OSI'),
-        BlizzardGame('fore', 'Call of Duty: Vanguard', 'FORE')
+        BlizzardGame('fore', 'Call of Duty: Vanguard', 'FORE'),
+        BlizzardGame('fenris', 'Diablo IV', 'D4')
     ]
     CLASSIC_GAMES = [
         ClassicGame('d2', 'Diablo® II', 'Diablo II', 'Diablo II', 'DisplayIcon', "Game.exe", "com.blizzard.diabloii"),
